@@ -519,7 +519,7 @@ async function exportFile(){
   for(let item of tempConsumptions){
     const tempClient = {
       client_id: item.client_id,
-      total: item.total,
+      total: parseFloat(item.total_payment),
       reference: item.reference,
       identifier: item.identifier
     }
@@ -527,9 +527,6 @@ async function exportFile(){
   }
 
   const response = await invoke('export_consumptions', { path: exportFilePath.value, data: toDownloadConsumptions, linker: JSON.stringify(linker) })
-  console.log('Response')
-  console.log(JSON.parse(response))
-  console.log(linker)
 }
 
 async function assignPayment(payment_id){

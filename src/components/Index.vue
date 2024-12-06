@@ -126,7 +126,7 @@ let HOST_FROM_EXPORT = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
 

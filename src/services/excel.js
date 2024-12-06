@@ -138,8 +138,6 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
         const folio = sheet[`${linker.folio.column}${idx}`] ? sheet[`${linker.folio.column}${idx}`].v : ''
         const department = sheet[`${linker.department.column}${idx}`] ? sheet[`${linker.department.column}${idx}`].v : ''
 
-        console.log(department)
-    
         // Consumo
         let factor = sheet[`${linker.conversion_factor.column}${idx}`] ? sheet[`${linker.conversion_factor.column}${idx}`].v : 0.0
         const admon = sheet[`${linker.price_admon.column}${idx}`] ? sheet[`${linker.price_admon.column}${idx}`].v : 0.0
@@ -151,7 +149,7 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
         // Cuenta
         const reference = sheet[`${linker.reference.column}${idx}`] ? sheet[`${linker.reference.column}${idx}`].v : ''
    
-        if(!owner)
+        if(!department)
             break
 
         const clientInformation = {
