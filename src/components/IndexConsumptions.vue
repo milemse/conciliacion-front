@@ -5,7 +5,11 @@ import { open } from '@tauri-apps/plugin-dialog'
 import Database from '@tauri-apps/plugin-sql'
 import { invoke } from '@tauri-apps/api/core'
 
+import { read } from 'xlsx'
+import { readFile } from '@tauri-apps/plugin-fs'
+
 import { downloadConsumptions } from '../services/excel'
+import { linker_consumptions } from '../utils/linker_consumptions'
 
 const structuredQueries = {
   general: {
@@ -122,10 +126,12 @@ let queryConsumptions = structuredQueries.general.query
 let queryConsumptionsCount = structuredQueries.general.count
 
 let PROVEE_TEST = ''
+let HOST_FROM_EXPORT = ''
 
 // metodos select() y execute()
 onBeforeMount(async function(){
   PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
   const getLastPeriod = 'select period_id, name from main.period order by period_id desc limit 1'
@@ -500,13 +506,30 @@ async function selectFile(){
     exportFileName.value = selectedFile.split('/').pop()
   }
 }
-
+ // { client_id, total, reference, identifier }
 async function exportFile(){
   const tempConsumptions = consumptions.value
+  const toDownloadConsumptions = []
+
+  const toDownloadFile = await readFile(exportFilePath.value)
+  const workbook = read(toDownloadFile)
+
+  const linker  = downloadConsumptions(workbook, linker_consumptions)
 
   for(let item of tempConsumptions){
-    console.log(item)
+    const tempClient = {
+      client_id: item.client_id,
+      total: item.total,
+      reference: item.reference,
+      identifier: item.identifier
+    }
+    toDownloadConsumptions.push(tempClient)
   }
+
+  const response = await invoke('export_consumptions', { path: exportFilePath.value, data: toDownloadConsumptions, linker: JSON.stringify(linker) })
+  console.log('Response')
+  console.log(JSON.parse(response))
+  console.log(linker)
 }
 
 async function assignPayment(payment_id){
@@ -580,7 +603,7 @@ async function showPerPageConsumptions(value){
   else
     salt_consumptions.value = parseInt(value.target.value)
 
-  const temp_consumptions_count = await DB.select(queryConsumptionsCount)
+  const temp_consumptions_count = await DB.select(queryConsumptionsCount, filterValues)
   consumptions_count.value = temp_consumptions_count.shift().consumptions_count
   const selectConsumptions = `${queryConsumptions} limit ${salt_consumptions.value}`
   const tempConsumptions = await DB.select(selectConsumptions, filterValues)

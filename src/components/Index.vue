@@ -104,6 +104,12 @@ const type_payment = ref('')
 const period_id = ref(0)
 const periods = ref([])
 
+const count_identifier = ref(0)
+const index_identifier = ref(0)
+const payment = ref({})
+
+const supplies = ref([])
+
 let match_counter = 0
 
 let paymentQuery = structuredQueries.general.query
@@ -204,6 +210,9 @@ async function makeByReference(){
   const match = []
   let acc_count = 0
 
+  count_identifier.value = temp_payments.length
+  index_identifier.value = 0
+
   for(let item of temp_payments){
     while(true){
       const accounts = await DB.select(`select a.reference_bbva from main.account a limit 50 offset ${acc_count}`)
@@ -217,6 +226,7 @@ async function makeByReference(){
         if(description.includes(reference) || description.includes(rightSubReference)){
           match_counter++
           match.push({ reference_payment: item.reference, description, reference })
+          index_identifier.value++
           return
         }
       })
@@ -352,7 +362,7 @@ function filterUI(){
 
 function paymentsUI(){
   hideUI('payment')
-  typeUI.value = 'payment'
+  typeUI.value = 'payments'
 }
 
 function exportFileUI(){
@@ -573,6 +583,20 @@ async function unvalidate(){
   }
 }
 
+async function showDetails(payment_id){
+  const selectPaymentInformation = `select p.payment_id, p.reference, p.account_id, p.description, p.validated, p.done_at, p.amount from main.payment p where payment_id = $1`
+  typeUI.value = 'payments'
+  
+  const tempPayment = await DB.select(selectPaymentInformation, [payment_id])
+  payment.value = tempPayment.shift()
+
+  const selectSupplies = `select account_id, cl.client_id, cl.department, acc.reference_bbva as reference from main.client cl join main.account acc on cl.client_id = acc.client_id where acc.is_supply = true`
+  const tempSupplies = await DB.select(selectSupplies)
+  supplies.value = tempSupplies
+
+  console.log(supplies.value)
+}
+
 async function showPerPage(value){
   const isNumber = !isNaN(value.target.value)
   let tempPayments = []
@@ -781,6 +805,7 @@ async function getPreviousPayments(){
               <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Emparejamiento por</th>
               <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Clave referenciada</th>
               <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Cliente</th>
+              <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Detalles</th>
               <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Validación</th>
             </tr>
           </thead>
@@ -798,6 +823,14 @@ async function getPreviousPayments(){
               </td>
               <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ payment.client_reference }}</td>
               <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ payment.client }}</td>
+              <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">
+                <button class="rounded-full border p-1 hover:bg-slate-200 hover:opacity-80" @click="showDetails(payment.payment_id)">
+                  <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-width="1" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+                    <path stroke="currentColor" stroke-width="1" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                  </svg>                  
+                </button>
+              </td>
               <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">
                 <span :class="payment.type_validation.classes">{{ payment.type_validation.name }}</span>
               </td>
@@ -827,6 +860,9 @@ async function getPreviousPayments(){
               <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 5 7 7-7 7"/>
             </svg>  
           </div>
+        </div>
+        <div>
+          <p class="font-normal text-black">Identificados: {{ index_identifier }} de {{ count_identifier }} </p>
         </div>          
       </div>
     </div>
@@ -884,6 +920,57 @@ async function getPreviousPayments(){
           <div class="flex gap-2">
             <button @click="selectFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Seleccionar</button>
             <button @click="exportFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Exportar</button>
+          </div>
+        </div>
+      </div>
+
+
+      <div id="pays" v-else-if="typeUI === 'payments'">
+        <h3 class="ml-2 mt-2 font-bold">Pagos</h3>
+        <div class="relative w-[calc(94%)] mt-2 ml-2 mb-2">
+          <select id="type_filter" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+            <option selected>Selecione un filtro</option> 
+            <option value="sm">Suministros</option>
+            <option value="cn">Consumos</option>
+          </select>
+          <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+          </svg>              
+        </div>
+
+        <hr>
+
+        <div class="p-2 overflow-y-auto">
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-if="payment">
+            <header class="border-b border-gray-600 pb-2">
+              <h3 class="text-sm font-semibold">ID Pago: <span class="text-slate-500 font-normal">{{ payment.reference }}</span></h3>
+              <p class="text-[11px] text-slate-600 font-semibold"></p>
+            </header>
+            <section class="flex-col space-y-1">
+              <p class="text-xs mt-2 font-semibold">Descripción: <span class="text-slate-600 font-light">{{ payment.description }}</span></p>
+              <p class="text-xs font-semibold">Fecha de pago: <span class="text-sm text-slate-600 font-light">{{ payment.done_at }}</span></p>
+              <p class="text-xs font-semibold">Monto: <span class="text-sm text-slate-600 font-light">$ {{ payment.amount.toLocaleString() }}</span></p>
+              <p class="text-xs font-semibold">Emperejamiento por: <span class="text-sm text-slate-600 font-light"></span></p>
+              <p class="text-xs font-semibold">Asignado a: <span class="text-sm text-slate-600 font-light"></span></p>
+            </section>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="p-2 overflow-y-auto h-[48vh]">
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="supply in supplies">
+            <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
+              <h3 class="text-md font-bold">Suministro: <span class="text-slate-500 font-normal">{{ supply.client_id }}</span></h3>
+            </header>
+            <section class="flex-col space-y-1 mb-2">
+              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ supply.department }}</span></p>
+              <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ supply.reference }}</span></p>
+            </section>
+            <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
+              <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
+              <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Eliminar</button>
+            </div>
           </div>
         </div>
       </div>

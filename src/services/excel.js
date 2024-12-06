@@ -233,8 +233,37 @@ export async function downloadPayments(payments, db){
     })
 }
 
-export async function downloadConsumptions(consumptions, db){
-    const to_download_consumption_update = `update main.payment set to_download_consumption = true where payment_id = $1`
+export function downloadConsumptions(workbook, linker){
+    const sheet = workbook.Sheets[workbook.SheetNames.shift()]
+    const keys = Object.keys(linker)
+
+    let index = 1
+    while(index < 10){
+        if(sheet[`A${index}`]){
+            const name = sheet[`A${index}`].v 
+            if(name.toLowerCase().trim() === 'condominio')
+                break
+        }    
+        index++
+    }
+
+    for (let item of keys){
+        for(let column of columns){
+            if(sheet[`${column}${index}`]){
+                let str = new String(sheet[`${column}${index}`].v)
+                str = str.replaceAll('\n', '')
+                str = str.replaceAll('\t', '')
+                str = str.replaceAll('\r', '')
+                str = str.replaceAll(' ', '')
+                str = str.toLocaleLowerCase()
+    
+                if(str === linker[item].name)
+                    linker[item].column = column
+            }
+        }
+    }
+
+    return linker
 }
 
 function formatDate(date){
