@@ -124,6 +124,11 @@ let paymentCountQuery = structuredQueries.general.count
 const selectedFilePath = ref('')
 const selectedFileName = ref('')
 
+const notification = ref({
+  title: '',
+  description: ''
+})
+
 // Variables de entorno
 let PROVEE_TEST = ''
 let PATH_FROM_EXPORT = ''
@@ -196,6 +201,12 @@ async function exportFile(){
 
   const response = await fetch(HOST_FROM_EXPORT, { method: 'GET' }) // TODO
   console.log(response)
+
+  notification.value.title = 'Exportación completa'
+  notification.value.description = 'Se ha completado la exportación de los pagos.'
+
+  const notificationUI = document.getElementById('notification')
+  notificationUI.style.display = 'block'
 }
 
 async function start(){
@@ -400,6 +411,11 @@ function hideUI(name){
         child.removeChild(childSpan)
     }
   }
+}
+
+function hideNotification(name){
+  const notification = document.getElementById(name)
+  notification.style.display = 'none'
 }
 
 async function getAllPayments(period){
@@ -639,6 +655,8 @@ async function unvalidate(){
       item.payment_id = 0
     }
   }
+
+  await getAllPayments()
 }
 
 async function showDetails(payment_id){
@@ -867,6 +885,20 @@ async function getPreviousPayments(){
 }
 </script>
 <template>
+  <div id="notification" style="display: none;" class="fixed mb-4 top-4 right-4 w-96 bg-white border rounded-xl flex-col z-50">
+    <div class="mt-2 ml-4 flex justify-between">
+      <h1 class="text-md font-bold">{{ notification.title }}</h1>
+      <button class="rounded-full border p-1 hover:bg-slate-200 hover:opacity-80 mr-4" @click="hideNotification('notification')">
+        <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+          <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M6 18 17.94 6M18 18 6.06 6"/>
+        </svg>        
+      </button>
+    </div>
+    <div class="mt-2 ml-4">
+      <p class="text-sm font-light">{{ notification.description }}</p>
+    </div>
+  </div>
+
   <!-- BANCOS -->
   <div id="banks" class="flex mr-6 min-w-[800px] min-h-[600px]">
     <div class="sm:max-w-[80vw] sm:w-[80vw] border max-h-screen mt-4 mx-4 shadow-md">

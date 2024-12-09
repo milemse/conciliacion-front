@@ -6,7 +6,7 @@ import Upload from './components/Upload.vue'
 import Validation from './components/Validation.vue'
 
 const routes = {
-    '/': IndexConsumptions,
+    '/': Index,
     '/upload': Upload,
     '/validation': Validation
 }

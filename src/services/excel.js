@@ -1,6 +1,6 @@
 import { columns } from '../utils/columns'
 
-export function getPaymentsInformation(workbook, linker, typeUpload) {
+export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
     const sheetNames = workbook.SheetNames
     let paymentSheets = [ sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift() ]
     const bbvaRegex = /bbva/i
@@ -58,8 +58,6 @@ export function getPaymentsInformation(workbook, linker, typeUpload) {
         let done_at = sheet[`${linker.done_at.column[index]}${columnIndex}`]
         let reference = sheet[`${linker.reference.column[index]}${columnIndex}`]
 
-        console.log('Fecha', done_at)
-
         let payment = {
             description: description ? description.v : '',
             amount: amount ? amount.v : 0.0,
@@ -94,7 +92,17 @@ export function getPaymentsInformation(workbook, linker, typeUpload) {
         }
     }
 
-    return payments
+    const selectPayment = `select payment_id from main.payment where reference = $1`
+    const toShowPayments = []
+
+    for(let payment of payments){
+        const tempPayment = await db.select(selectPayment, [payment.reference])
+
+        if(tempPayment.length === 0)
+            toShowPayments.push(payment)
+    }
+
+    return toShowPayments
 }
 
 export function getConsumptionsInformation(workbook, linker, typeUpload) {
@@ -177,7 +185,7 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
 export async function uploadPayments(db, payments, upload){
     for (let item of payments) {
         const fecha = item.done_at
-        const insertPyment = `insert into main.payment(description, done_at, amount, reference, validated, to_download, to_download_consumption) values($1, '${fecha}', $2, $3, false, false, false)`
+        const insertPyment = `insert into main.payment(description, done_at, amount, reference, validated, to_download, downloaded) values($1, '${fecha}', $2, $3, false, false, false)`
 
         if(!isNaN(item.amount)){
             await db.execute(insertPyment, [item.description, item.amount, item.reference])
