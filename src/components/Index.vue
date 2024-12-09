@@ -89,6 +89,12 @@ const structuredQueries = {
     period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is null and validated = false order by p.payment_id`,
     countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is null and validated = false`
   },
+  downloaded: {
+    query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is not null and downloaded = true order by p.payment_id`,
+    count: `select count(*) as payments_count from main.payment p where p.account_id is not null and p.downloaded = true`,
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true order by p.payment_id`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true`
+  },
   period: {
     query: `select period_id, name from main.period`
   }
@@ -126,7 +132,7 @@ let HOST_FROM_EXPORT = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
 
@@ -157,7 +163,7 @@ onBeforeMount(async function(){
       tempPayments[idx].total = ''
       tempPayments[idx].client_reference = reference
       tempPayments[idx].identification = type_identification.reference
-      tempPayments[idx].type_validation = type_validation.valid
+      tempPayments[idx].type_validation = type_validation.not_valid
     }else{
       tempPayments[idx].client_reference = ''
       tempPayments[idx].client = ''
@@ -342,6 +348,10 @@ async function filter(){
       await getAllUnvalidatedPayments(period)
 
     break
+    case 'dw':
+      await getAllDownloadedPayments(period)
+
+    break
     default:
       await getAllPayments(period)
 
@@ -432,7 +442,7 @@ async function getAllPayments(period){
       tempPayments[idx].total = ''
       tempPayments[idx].client_reference = reference
       tempPayments[idx].identification = type_identification.reference
-      tempPayments[idx].type_validation = type_validation.valid
+      tempPayments[idx].type_validation = type_validation.not_valid
     }else{
       tempPayments[idx].toshow_reference = tempPayments[idx].reference.split('-').shift()
       tempPayments[idx].client_reference = ''
@@ -444,6 +454,54 @@ async function getAllPayments(period){
   }
 
   type_payment.value = ''
+  payments.value = tempPayments
+}
+
+async function getAllDownloadedPayments(period){
+  let selectValidatedPayments = ''
+  let tempPayments = []
+  let temp_payments_count = { payments_count: 0 }
+
+  if(!isNaN(period)){
+    paymentQuery = structuredQueries.downloaded.period
+    paymentCountQuery = structuredQueries.downloaded.countPeriod
+
+    selectValidatedPayments = `${paymentQuery} limit ${salt}`
+    tempPayments = await DB.select(selectValidatedPayments, [parseInt(period), parseInt(period)])
+    temp_payments_count = await DB.select(paymentCountQuery, [parseInt(period), parseInt(period)])
+  }else{
+    paymentQuery = structuredQueries.downloaded.query
+    paymentCountQuery = structuredQueries.downloaded.count
+
+    selectValidatedPayments = `${paymentQuery} limit ${salt}`
+    tempPayments = await DB.select(selectValidatedPayments)
+    temp_payments_count = await DB.select(paymentCountQuery)
+  }
+
+  payments_count.value = temp_payments_count.shift().payments_count
+
+  for(let idx = 0; idx < tempPayments.length; idx++){
+    tempPayments[idx].checked = false
+    tempPayments[idx].id = tempPayments[idx].payment_id
+    tempPayments[idx].toshow_reference = tempPayments[idx].reference.split('-').shift()
+
+    const selectAccountId = `select reference_bbva from main.account where account_id = $1`
+    const resultAccount = await DB.select(selectAccountId, [tempPayments[idx].account_id])
+    const reference = resultAccount.shift().reference_bbva
+
+    const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as deparment from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+    const resultClient = await DB.select(selectClientByReference, [reference])
+
+    tempPayments[idx].client = resultClient.shift().department
+    tempPayments[idx].total = ''
+    tempPayments[idx].client_reference = reference
+    tempPayments[idx].identification = type_identification.reference
+    tempPayments[idx].type_validation = type_validation.valid
+  }
+
+  type_payment.value = 'fn'
+  current_pay.value = 0
+
   payments.value = tempPayments
 }
 
@@ -585,16 +643,61 @@ async function unvalidate(){
 
 async function showDetails(payment_id){
   const selectPaymentInformation = `select p.payment_id, p.reference, p.account_id, p.description, p.validated, p.done_at, p.amount from main.payment p where payment_id = $1`
-  typeUI.value = 'payments'
+  typeUI.value = 'conciliate'
   
   const tempPayment = await DB.select(selectPaymentInformation, [payment_id])
   payment.value = tempPayment.shift()
 
-  const selectSupplies = `select account_id, cl.client_id, cl.department, acc.reference_bbva as reference from main.client cl join main.account acc on cl.client_id = acc.client_id where acc.is_supply = true`
+  const selectClientInformation = `select cl.client_id, acc.account_id, py.payment_id, cl.client from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id join main.account acc on cl.client_id = acc.client_id join main.payment py on acc.account_id = py.account_id where py.payment_id = $1`
+  let tempClient = await DB.select(selectClientInformation, [payment_id])
+  
+  if(tempClient.length > 0){
+    tempClient = tempClient.shift()
+
+    payment.value.client = tempClient.client
+    payment.value.client_reference = tempClient.reference
+  }
+
+  const selectSupplies = `select account_id, cl.client_id, cl.client, acc.reference_bbva as reference from main.client cl join main.account acc on cl.client_id = acc.client_id where acc.is_supply = true`
   const tempSupplies = await DB.select(selectSupplies)
   supplies.value = tempSupplies
+}
 
-  console.log(supplies.value)
+async function checkClient(event){
+  const str = event.target.value
+  const params = str.split(':')
+
+  if(params.length === 2){
+    const [type, supply] = params
+
+    if(type.toLowerCase() === 's'){
+      const selectSupply = `select cl.client_id, cl.client, acc.account_id, acc.reference_bbva as reference from main.client cl join main.account acc on acc.client_id = cl.client_id where identifier = '' and client ilike '%${supply}%'`
+      const tempSupplies = await DB.select(selectSupply)
+      supplies.value = tempSupplies
+    }
+
+  }else if(params.length === 3){
+    const [type, block, condominium] = params
+
+    if(type.toLowerCase() === 'c'){
+      const selectClient = `select cl.client_id, cl.client, acc.account_id, acc.reference_bbva as reference from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id join main.account acc on acc.client_id = cl.client_id where cd.block = ${block} and cl.client ilike '%${condominium}%'`
+      const tempClients = await DB.select(selectClient)
+      supplies.value = tempClients
+    }
+  }else
+    supplies.value = []
+}
+
+async function assignPayment(client, account_id){
+  const payment_id = payment.value.payment_id
+
+  if(payment_id === undefined)
+    return
+
+  const updatePaymentSelected = `update main.payment set account_id = $1 where payment_id = $2`
+  await DB.execute(updatePaymentSelected, [account_id, payment_id])
+  payment.value.client = client
+  await getAllPayments()
 }
 
 async function showPerPage(value){
@@ -659,6 +762,13 @@ async function makeMatchClient(newMatch){
 }
 
 async function getNextPayments(){
+  let tempCount = 0
+  if(period_id.value !== 0)
+    tempCount = await DB.select(paymentCountQuery, [period_id.value, period_id.value])
+  else
+    tempCount = await DB.select(paymentCountQuery)
+
+  payments_count.value = tempCount.shift().payments_count
   const tempOffset = current_pay.value + salt < payments_count.value ? current_pay.value + salt : payments_count.value
   let temp = []
 
@@ -704,6 +814,13 @@ async function getNextPayments(){
 }
 
 async function getPreviousPayments(){
+  let tempCount = 0
+  if(period_id.value !== 0)
+    tempCount = await DB.select(paymentCountQuery, [period_id.value, period_id.value])
+  else
+    tempCount = await DB.select(paymentCountQuery)
+
+  payments_count.value = tempCount.shift().payments_count
   const tempOffset = (current_pay.value - salt) > -1 ? current_pay.value - salt : 0
   let temp = []
 
@@ -886,15 +1003,52 @@ async function getPreviousPayments(){
           </div>
           <button @click="unvalidate" class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-red-600 p-2">Quitar Validación</button>
         </div>
+
+        <hr class="mt-2">
+
+        <div class="p-2 overflow-y-auto">
+          <input id="pattern" type="text" @keyup.enter="checkClient" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce el patrón de busqueda">
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-if="payment">
+            <header class="border-b border-gray-600 pb-2">
+              <h3 class="text-sm font-semibold">ID Pago: <span class="text-slate-500 font-normal">{{ payment.reference }}</span></h3>
+              <p class="text-[11px] text-slate-600 font-semibold"></p>
+            </header>
+            <section class="flex-col space-y-1">
+              <p class="text-xs mt-2 font-semibold">Descripción: <span class="text-slate-600 font-light">{{ payment.description }}</span></p>
+              <p class="text-xs font-semibold">Fecha de pago: <span class="text-sm text-slate-600 font-light">{{ payment.done_at }}</span></p>
+              <p class="text-xs font-semibold">Monto: <span class="text-sm text-slate-600 font-light">$ {{ payment.amount }}</span></p>
+              <p class="text-xs font-semibold">Asignado a: <span class="text-sm text-slate-600 font-light">{{ payment.client }}</span></p>
+            </section>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="p-2 overflow-y-auto h-[30vh]">
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="supply in supplies">
+            <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
+              <h3 class="text-md font-bold">Suministro: <span class="text-slate-500 font-normal">{{ supply.client_id }}</span></h3>
+            </header>
+            <section class="flex-col space-y-1 mb-2">
+              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ supply.client }}</span></p>
+              <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ supply.reference }}</span></p>
+            </section>
+            <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
+              <button @click="assignPayment(supply.client, supply.account_id)" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <div id="filt" class="mx-2" v-else-if="typeUI === 'filter'">
+      <div id="filter" class="mx-2" v-else-if="typeUI === 'filter'">
         <h3 class="mt-2 font-bold">Filtrar</h3>
         <div class="relative w-[calc(100%)] mt-2">
           <select id="type_filter" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
             <option selected>Selecione una opción</option> 
             <option value="fn">Identificado</option>
             <option value="n_fn">No identificado</option>
+            <option value="dw">Descargados</option>
           </select>
           <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
@@ -941,17 +1095,16 @@ async function getPreviousPayments(){
         <hr>
 
         <div class="p-2 overflow-y-auto">
-          <div class="border rounded-lg p-2 mb-2 shadow-md" v-if="payment">
+          <div class="border rounded-lg p-2 mb-2 shadow-md">
             <header class="border-b border-gray-600 pb-2">
-              <h3 class="text-sm font-semibold">ID Pago: <span class="text-slate-500 font-normal">{{ payment.reference }}</span></h3>
+              <h3 class="text-sm font-semibold">ID Pago: <span class="text-slate-500 font-normal">{{  }}</span></h3>
               <p class="text-[11px] text-slate-600 font-semibold"></p>
             </header>
             <section class="flex-col space-y-1">
-              <p class="text-xs mt-2 font-semibold">Descripción: <span class="text-slate-600 font-light">{{ payment.description }}</span></p>
-              <p class="text-xs font-semibold">Fecha de pago: <span class="text-sm text-slate-600 font-light">{{ payment.done_at }}</span></p>
-              <p class="text-xs font-semibold">Monto: <span class="text-sm text-slate-600 font-light">$ {{ payment.amount.toLocaleString() }}</span></p>
-              <p class="text-xs font-semibold">Emperejamiento por: <span class="text-sm text-slate-600 font-light"></span></p>
-              <p class="text-xs font-semibold">Asignado a: <span class="text-sm text-slate-600 font-light"></span></p>
+              <p class="text-xs mt-2 font-semibold">Descripción: <span class="text-slate-600 font-light">{{  }}</span></p>
+              <p class="text-xs font-semibold">Fecha de pago: <span class="text-sm text-slate-600 font-light">{{  }}</span></p>
+              <p class="text-xs font-semibold">Monto: <span class="text-sm text-slate-600 font-light">$ {{  }}</span></p>
+              <p class="text-xs font-semibold">Asignado a: <span class="text-sm text-slate-600 font-light">{{  }}</span></p>
             </section>
           </div>
         </div>
@@ -959,16 +1112,16 @@ async function getPreviousPayments(){
         <hr>
 
         <div class="p-2 overflow-y-auto h-[48vh]">
-          <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="supply in supplies">
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="supply in []">
             <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
               <h3 class="text-md font-bold">Suministro: <span class="text-slate-500 font-normal">{{ supply.client_id }}</span></h3>
             </header>
             <section class="flex-col space-y-1 mb-2">
-              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ supply.department }}</span></p>
+              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ supply.client }}</span></p>
               <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ supply.reference }}</span></p>
             </section>
             <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
-              <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
+              <button @click="" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
               <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Eliminar</button>
             </div>
           </div>
