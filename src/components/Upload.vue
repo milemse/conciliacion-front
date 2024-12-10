@@ -41,7 +41,7 @@ let PROVEE_TEST = ''
 // metodos select() y execute()
 onBeforeMount(async function () {
     PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
-    DB = await Database.load('postgres://fmontoya:NZSCx81!@localhost/provee')
+    DB = await Database.load(PROVEE_TEST)
 })
 
 async function start(){

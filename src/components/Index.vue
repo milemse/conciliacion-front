@@ -74,26 +74,26 @@ const structuredQueries = {
   general: {
     query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.validated = false order by p.payment_id asc`,
     count: `select count(*) as payments_count from main.payment p where p.account_id is null and p.validated = false`,
-    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.validated = false order by p.payment_id asc`,
-    countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.validated = false`
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.validated = false order by p.payment_id asc`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.validated = false`
   },
   found: {
     query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is not null and validated = true order by p.payment_id`,
     count: `select count(*) as payments_count from main.payment p where p.account_id is not null and p.validated = true`,
-    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and validated = true order by p.payment_id`,
-    countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and validated = true`
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and validated = true order by p.payment_id`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and validated = true`
   },
   not_found: {
     query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is null and validated = false order by p.payment_id`,
     count: `select count(*) as payments_count from main.payment p where p.account_id is null and p.validated = false`,
-    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is null and validated = false order by p.payment_id`,
-    countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is null and validated = false`
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is null and validated = false order by p.payment_id`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is null and validated = false`
   },
   downloaded: {
     query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is not null and downloaded = true order by p.payment_id`,
     count: `select count(*) as payments_count from main.payment p where p.account_id is not null and p.downloaded = true`,
-    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true order by p.payment_id`,
-    countPeriod: `select count(*) as payments_count from main.payment p where done_at > (select initial from main.period where period_id = $1) and done_at < (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true`
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true order by p.payment_id`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true`
   },
   period: {
     query: `select period_id, name from main.period`
@@ -526,6 +526,7 @@ async function getAllValidatedPayments(period){
   let tempPayments = []
   let temp_payments_count = { payments_count: 0 }
 
+
   if(!isNaN(period)){
     paymentQuery = structuredQueries.found.period
     paymentCountQuery = structuredQueries.found.countPeriod
@@ -630,7 +631,6 @@ async function validate(){
     const payment_id = resultPayment.shift().payment_id 
 
     const updatePayment = `update main.payment set account_id = $1, validated = true, type_identificacion = $2 where payment_id = $3`
-    console.log([parseInt(account_id), item.identification.code, payment_id])
     await DB.execute(updatePayment, [parseInt(account_id), item.identification.code, payment_id])
   }
 
@@ -849,8 +849,6 @@ async function getPreviousPayments(){
 
   for(let idx = 0; idx < temp.length; idx++){
     if(temp[idx].account_id){
-      console.log('Get previous payments')
-      console.log(temp[idx])
       const selectAccountId = `select reference_bbva from main.account where account_id = $1`
       const resultAccount = await DB.select(selectAccountId, [temp[idx].account_id])
       const reference = resultAccount.shift().reference_bbva
