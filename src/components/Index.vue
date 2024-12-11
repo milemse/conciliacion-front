@@ -59,7 +59,7 @@ const menuUI = {
   },
   payment: {
     id: 'payment',
-    description: 'Pagos',
+    description: 'Consumos',
     classes: 'title text-md font-light ml-2',
     ui: ''
   },
@@ -95,6 +95,12 @@ const structuredQueries = {
     period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true order by p.payment_id`,
     countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true`
   },
+  client: {
+    queryClient: `select cl.client_id, cl.client, acc.reference_bbva as reference, acc.account_id from  main.client cl join main.account acc on acc.client_id = cl.client_id where cl.client_id = $1`,
+    queryClientInformation: `select cl.client_id, cl.identifier, cl.client, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
+    queryClientInformationPeriod: ``,
+    queryIsSupplier: `select cl.client_id from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id where cd.block = 0 and cl.client_id = $1`
+  },
   period: {
     query: `select period_id, name from main.period`
   }
@@ -113,6 +119,7 @@ const periods = ref([])
 const count_identifier = ref(0)
 const index_identifier = ref(0)
 const payment = ref({})
+const client = ref({})
 
 const supplies = ref([])
 
@@ -137,7 +144,7 @@ let HOST_FROM_EXPORT = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
 
@@ -681,6 +688,34 @@ async function showDetails(payment_id){
   supplies.value = tempSupplies
 }
 
+async function showClientDetails(clientName, account_id, client_id){
+  let tempClient = await DB.select(structuredQueries.client.queryClient, [client_id])
+
+  if(tempClient.length > 0){
+    tempClient = tempClient.shift()
+    tempClient.client = clientName
+    tempClient.account_id = account_id
+    tempClient.liters = 0
+    tempClient.debt = 0
+    tempClient.total = 0
+    client.value = tempClient
+
+    typeUI.value = 'payments'
+  }
+}
+
+async function showClientConsumption(event){
+  const period_id = isNaN(event.target.value) ? 0 : parseInt(event.target.value)
+  const tempIsSupplier = await DB.select(structuredQueries.client.queryIsSupplier, [client.value.client_id])
+  const isSupplier = tempIsSupplier.length > 0
+
+  if(period_id !== 0 && !isSupplier){
+    const tempClient = client.value
+    const tempConsumption = await DB.select(structuredQueries.client.queryClientInformation, [period_id, client.value.client_id])
+    client.value = tempConsumption.length > 0 ? tempConsumption.shift() : tempClient
+  }
+}
+
 async function checkClient(event){
   const str = event.target.value
   const params = str.split(':')
@@ -917,7 +952,7 @@ async function getPreviousPayments(){
                 <path fill="currentColor" d="M12 17a2 2 0 0 1 2 2h-4a2 2 0 0 1 2-2Z"/>
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13.815 9H16.5a2 2 0 1 0-1.03-3.707A1.87 1.87 0 0 0 15.5 5 1.992 1.992 0 0 0 12 3.69 1.992 1.992 0 0 0 8.5 5c.002.098.012.196.03.293A2 2 0 1 0 7.5 9h3.388m2.927-.985v3.604M10.228 9v2.574M15 16h.01M9 16h.01m11.962-4.426a1.805 1.805 0 0 1-1.74 1.326 1.893 1.893 0 0 1-1.811-1.326 1.9 1.9 0 0 1-3.621 0 1.8 1.8 0 0 1-1.749 1.326 1.98 1.98 0 0 1-1.87-1.326A1.763 1.763 0 0 1 8.46 12.9a2.035 2.035 0 0 1-1.905-1.326A1.9 1.9 0 0 1 4.74 12.9 1.805 1.805 0 0 1 3 11.574V12a9 9 0 0 0 18 0l-.028-.426Z"/>
               </svg>
-              <span id="title-payment" class="title text-md font-light ml-2">Pagos</span>  
+              <span id="title-payment" class="title text-md font-light ml-2">Consumos</span>  
             </button>
           </div>
           <div id="filter">
@@ -1065,6 +1100,7 @@ async function getPreviousPayments(){
             </section>
             <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
               <button @click="assignPayment(supply.client, supply.account_id)" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
+              <button @click="showClientDetails(supply.client, supply.account_id, supply.client_id)" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Ver detalle</button>
             </div>
           </div>
         </div>
@@ -1110,31 +1146,29 @@ async function getPreviousPayments(){
 
 
       <div id="pays" v-else-if="typeUI === 'payments'">
-        <h3 class="ml-2 mt-2 font-bold">Pagos</h3>
-        <div class="relative w-[calc(94%)] mt-2 ml-2 mb-2">
-          <select id="type_filter" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
-            <option selected>Selecione un filtro</option> 
-            <option value="sm">Suministros</option>
-            <option value="cn">Consumos</option>
-          </select>
-          <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
-          </svg>              
-        </div>
-
-        <hr>
-
+        <h3 class="ml-2 mt-2 font-bold">Consumos</h3>
         <div class="p-2 overflow-y-auto">
-          <div class="border rounded-lg p-2 mb-2 shadow-md">
+          <input id="pattern" type="text" @keyup.enter="" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce el patrón de busqueda">
+          <div class="relative w-[calc(100%)] mt-2 mb-2">
+            <select id="period_filter" @change="showClientConsumption" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+              <option selected>Selecione una opción</option> 
+              <option :value="period.period_id" v-for="period in periods">{{ period.name }}</option>
+            </select>
+            <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+            </svg>              
+          </div>
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-if="client">
             <header class="border-b border-gray-600 pb-2">
-              <h3 class="text-sm font-semibold">ID Pago: <span class="text-slate-500 font-normal">{{  }}</span></h3>
+              <h3 class="text-sm font-semibold">ID Cliente: <span class="text-slate-500 font-normal">{{ client.client_id }}</span></h3>
               <p class="text-[11px] text-slate-600 font-semibold"></p>
             </header>
             <section class="flex-col space-y-1">
-              <p class="text-xs mt-2 font-semibold">Descripción: <span class="text-slate-600 font-light">{{  }}</span></p>
-              <p class="text-xs font-semibold">Fecha de pago: <span class="text-sm text-slate-600 font-light">{{  }}</span></p>
-              <p class="text-xs font-semibold">Monto: <span class="text-sm text-slate-600 font-light">$ {{  }}</span></p>
-              <p class="text-xs font-semibold">Asignado a: <span class="text-sm text-slate-600 font-light">{{  }}</span></p>
+              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ client.client }}</span></p>
+              <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ client.reference }}</span></p>
+              <p class="text-xs font-semibold">Consumo: <span class="text-sm text-slate-600 font-light">{{ client.liters }} Lts.</span></p>
+              <p class="text-xs font-semibold">Adeudo: <span class="text-sm text-slate-600 font-light">$ {{ client.debt }}</span></p>
+              <p class="text-xs font-semibold">Total: <span class="text-sm text-slate-600 font-light">$ {{ client.total }}</span></p>
             </section>
           </div>
         </div>
