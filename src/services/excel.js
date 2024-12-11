@@ -194,7 +194,7 @@ export async function uploadPayments(db, payments, upload){
     }
 }
 
-export async function uploadConsumptions(db, consumptions, upload){
+export async function uploadConsumptions(db, consumptions, upload, in_period_id){
     for(let consumption of consumptions){
         // Obtener id del cliente
         const selectClientId = `select cl.client_id from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
@@ -211,6 +211,9 @@ export async function uploadConsumptions(db, consumptions, upload){
             const getLastPeriod = 'select period_id from main.period order by period_id desc limit 1'
             const resultPeriod = await db.select(getLastPeriod)
             const period_id = resultPeriod.shift().period_id
+
+            if(in_period_id !== 0)
+                period_id = in_period_id
 
             // Ingresar lecturas
             const insertReading = `insert into main.reading(client_id, last_reading, current_reading, last_url_photo, generated_at, current_url_photo, period_id) values($1, $2, $3, '', now(), '', $4)`

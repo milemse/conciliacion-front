@@ -37,11 +37,13 @@ const structuredQueries = {
     queryAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.reference_bbva = $1`,
     queryNotAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at from main.payment py where py.account_id is null`,
     queryByClient: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1`,
+    queryByClientPeriod: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1 and py.done_at >= (select initial from main.period where period_id = $2) and py.done_at <= (select final from main.period where period_id = $3)`,
     queryAssignPayment: `update main.payment set account_id = $1, type_identificacion = 'am' where payment_id = $2`,
     queryDeletePayment: `update main.payment set account_id = null where payment_id = $1`
   },
   total: {
-    query: `select cl.client_id, sum(py.amount) as total from main.client cl join main.account acc on acc.client_id = cl.client_id join main.payment py on py.account_id = acc.account_id where cl.client_id = $1 group by cl.client_id`
+    query: `select cl.client_id, sum(py.amount) as total from main.client cl join main.account acc on acc.client_id = cl.client_id join main.payment py on py.account_id = acc.account_id where cl.client_id = $1 group by cl.client_id`,
+    queryPeriod: `select cl.client_id, sum(py.amount) as total from main.client cl join main.account acc on acc.client_id = cl.client_id join main.payment py on py.account_id = acc.account_id where cl.client_id = $1 and py.done_at >= (select initial from main.period where period_id = $2) and py.done_at <= (select final from main.period where period_id = $3) group by cl.client_id`
   }
 }
 
@@ -117,10 +119,14 @@ const exportFileName = ref('')
 const consumptions = ref([])
 const payments = ref([])
 const client = ref({  })
+const global_client_id = ref(0)
 const period = ref({  })
 const consumptions_count = ref(0)
 const current_consumptions = ref(0)
 const salt_consumptions = ref(10)
+const periods = ref([])
+
+const periodPayments = ref(false)
 
 let queryConsumptions = structuredQueries.general.query
 let queryConsumptionsCount = structuredQueries.general.count
@@ -130,7 +136,7 @@ let HOST_FROM_EXPORT = ''
 
 // metodos select() y execute()
 onBeforeMount(async function(){
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
@@ -165,6 +171,7 @@ function isClose(a, b, relTol = 1e-9, absTol = 0) {
 }
 
 function hideUI(name){
+  periodPayments.value = false
   const optionHTML = document.getElementsByClassName('option')
 
   for(let child of optionHTML){
@@ -196,9 +203,12 @@ function filterUIConsumptions(){
     typeUI.value = 'filter-consumptions'
 }
 
-function exportFileUIConsumptions(){
+async function exportFileUIConsumptions(){
     hideUI('exportFile')
     typeUI.value = 'exportFile-consumptions'
+
+    const tempPeriods = await getAllPeriods()
+    periods.value = tempPeriods
 }
 
 async function paymentUIConsumptions(){
@@ -543,6 +553,26 @@ async function deletePayment(payment_id){
   await getGeneralConsumptions()
 }
 
+async function getPeriodPayments(value){
+  const tempConsumptions = consumptions.value
+  let tempPayments = []
+
+  if(!isNaN(value.target.value))
+    tempPayments = await DB.select(structuredQueries.payments.queryByClientPeriod, [global_client_id.value, parseInt(value.target.value), parseInt(value.target.value)])
+  else
+    tempPayments = await DB.select(structuredQueries.payments.queryByClient, [global_client_id.value])
+
+  let tempClient = ''
+
+  for(let item of tempConsumptions){
+    if(item.client_id === global_client_id.value)
+      tempClient = item.department
+  }
+
+  tempPayments.forEach(payment => { payment.client = tempClient })
+  payments.value = tempPayments
+}
+
 async function showDetails(client_id){
   if(typeUI.value === 'payments-consumptions'){
     const tempConsumptions = consumptions.value
@@ -553,6 +583,10 @@ async function showDetails(client_id){
       if(item.client_id === client_id)
         tempClient = item.department
     }
+
+    periods.value = await getAllPeriods()
+    periodPayments.value = true
+    global_client_id.value = client_id
 
     payment.forEach(payment => { payment.client = tempClient })
     payments.value = payment
@@ -867,6 +901,17 @@ async function getNextConsumptions(){
       <div id="exp" v-else-if="typeUI === 'exportFile-consumptions'">
         <h3 class="ml-2 mt-2 font-bold">Exportar</h3>
         <div class="w-[calc(94%)] mt-2 ml-2 mb-2">
+          <div class="relative w-[calc(100%)] mt-2 mb-2">
+            <select id="block_filter" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+              <option value="block-0" selected>Selecciona el periodo a exportar</option> 
+              <option :value="`${period.id}`" v-for="period in periods">
+                {{ period.name }}
+              </option>
+            </select>
+            <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+            </svg>              
+        </div>
           <input id="filePath" type="text" :value="exportFileName" disabled class="border rounded-md text-sm text-slate-400 w-full p-1 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Seleccionar archivo">
           <div class="flex gap-2">
             <button @click="selectFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Seleccionar</button>
@@ -891,7 +936,18 @@ async function getNextConsumptions(){
 
         <hr>
 
-        <div class="p-2 overflow-y-auto h-[74vh]">
+        <div class="p-2 overflow-y-auto h-[74vh]" v-if="periodPayments">
+          <div class="relative w-[calc(98%)] mt-2 mb-2">
+            <select id="period_to_show" @change="getPeriodPayments" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+              <option selected>Selecione un periodo</option> 
+              <option :value="`${period.id}`" v-for="period in periods">
+                {{ period.name }}
+              </option>
+            </select>
+            <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+            </svg>              
+          </div>
           <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="payment in payments">
             <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
               <h3 class="text-md font-bold">Pago: <span class="text-slate-500 font-normal">{{ payment.payment_id }}</span></h3>

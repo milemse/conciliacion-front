@@ -29,6 +29,8 @@ const consumptionsToShow = ref([])
 let totalOfConsumptions = []
 const count = ref(0)
 const toShowType = ref(false)
+const periods = ref([])
+const period_id = ref(0)
 let fileType = ''
 const position = ref({
     start: 0,
@@ -40,8 +42,9 @@ let PROVEE_TEST = ''
 
 // metodos select() y execute()
 onBeforeMount(async function () {
-    PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+    PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
     DB = await Database.load(PROVEE_TEST)
+    await getAllPeriods()
 })
 
 async function start(){
@@ -93,7 +96,7 @@ async function upload() {
             paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
         break
         case 'rd':
-            await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload)
+            await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload, period_id.value)
             consumptionsToShow.value = []
             consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
         break
@@ -115,6 +118,18 @@ function showConsumptions(workbook){
     totalOfConsumptions = getConsumptionsInformation(workbook, linker_consumptions, type_upload)
     count.value = totalOfConsumptions.length
     consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
+}
+
+function getPeriodId(value){
+    if(!isNaN(value.target.value))
+        period_id.value = parseInt(value.target.value)
+}
+
+async function getAllPeriods(){
+  const selectPeriods = `select pr.period_id as id, pr.name as name from main.period pr`
+  const tempPeriods = await DB.select(selectPeriods)
+
+  periods.value = tempPeriods
 }
 
 function getPrevious(){
@@ -148,11 +163,22 @@ function getNext(){
 <template>
     <h1 class="mt-4 ml-6 text-md font-semibold">Carga de pagos</h1>
     <div class="flex mt-4">
-        <div class="relative mx-6 w-1/3">
+        <div class="relative mx-4 w-3/5">
             <select id="fileType" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
                 <option selected>Selecione una opción</option> 
                 <option value="fz">Pagos del área de Finanzas</option>
                 <option value="rd">Consumos del área de Residenciales</option>
+            </select>
+            <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+            </svg>              
+        </div>
+        <div class="relative mr-2 w-2/5">
+            <select @change="getPeriodId" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+                <option selected>Selecione un periodo</option> 
+                <option :value="`${period.id}`" v-for="period in periods">
+                    {{ period.name }}
+                </option>
             </select>
             <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
