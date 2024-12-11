@@ -136,7 +136,7 @@ let HOST_FROM_EXPORT = ''
 
 // metodos select() y execute()
 onBeforeMount(async function(){
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
@@ -155,7 +155,7 @@ onBeforeMount(async function(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -244,7 +244,7 @@ async function getGeneralConsumptions(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -297,7 +297,7 @@ async function checkTolerance(event){
 }
 
 async function getPayments(event){
-  let query = `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at from main.payment py where py.account_id is null`
+  let query = structuredQueries.payments.queryNotAssigned
   if(event){
     switch(event.target.value){
       case 'ag':
@@ -329,9 +329,6 @@ async function getPayments(event){
           payments.value = tempPaymentsByClient
         }
         return
-      default:
-        query = structuredQueries.payments.queryNotAssigned
-        break
     }
   }
 
@@ -409,7 +406,7 @@ async function filter(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -478,7 +475,7 @@ async function removeFilters(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -598,7 +595,7 @@ async function showDetails(client_id){
 
   if(tempClient.length > 0){
     tempClient = tempClient.shift()
-    const total = await DB.select(structuredQueries.total.query, [client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       tempClient.total_payment = total.shift().total.toFixed(2)
     else
@@ -629,19 +626,22 @@ async function showPerPageConsumptions(value){
   if(filterValues.length === 0)
     filterValues = [period.value.period_id]
 
+  let selectConsumptions = ''
+
   if(isNaN(value.target.value))
-    return
-  else
+    selectConsumptions = queryConsumptions
+  else{
     salt_consumptions.value = parseInt(value.target.value)
+    selectConsumptions = `${queryConsumptions} limit ${salt_consumptions.value}`
+  }
 
   const temp_consumptions_count = await DB.select(queryConsumptionsCount, filterValues)
   consumptions_count.value = temp_consumptions_count.shift().consumptions_count
-  const selectConsumptions = `${queryConsumptions} limit ${salt_consumptions.value}`
   const tempConsumptions = await DB.select(selectConsumptions, filterValues)
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -663,7 +663,7 @@ async function getPreviousConsumptions(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -686,7 +686,7 @@ async function getNextConsumptions(){
 
   for (let item of tempConsumptions){
     item.checked = false
-    const total = await DB.select(structuredQueries.total.query, [item.client_id])
+    const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
     else
@@ -841,7 +841,6 @@ async function getNextConsumptions(){
               </section>
               <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
                 <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="assignPayment(payment.payment_id)">Asignar</button>
-                <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="deletePayment(payment.payment_id)">Eliminar</button>
               </div>
             </div>
           </div>
@@ -901,17 +900,6 @@ async function getNextConsumptions(){
       <div id="exp" v-else-if="typeUI === 'exportFile-consumptions'">
         <h3 class="ml-2 mt-2 font-bold">Exportar</h3>
         <div class="w-[calc(94%)] mt-2 ml-2 mb-2">
-          <div class="relative w-[calc(100%)] mt-2 mb-2">
-            <select id="block_filter" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
-              <option value="block-0" selected>Selecciona el periodo a exportar</option> 
-              <option :value="`${period.id}`" v-for="period in periods">
-                {{ period.name }}
-              </option>
-            </select>
-            <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
-            </svg>              
-        </div>
           <input id="filePath" type="text" :value="exportFileName" disabled class="border rounded-md text-sm text-slate-400 w-full p-1 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Seleccionar archivo">
           <div class="flex gap-2">
             <button @click="selectFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Seleccionar</button>
@@ -936,8 +924,8 @@ async function getNextConsumptions(){
 
         <hr>
 
-        <div class="p-2 overflow-y-auto h-[74vh]" v-if="periodPayments">
-          <div class="relative w-[calc(98%)] mt-2 mb-2">
+        <div class="p-2 overflow-y-auto h-[74vh]">
+          <div class="relative w-[calc(98%)] mt-2 mb-2" v-if="periodPayments">
             <select id="period_to_show" @change="getPeriodPayments" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
               <option selected>Selecione un periodo</option> 
               <option :value="`${period.id}`" v-for="period in periods">
@@ -962,7 +950,6 @@ async function getNextConsumptions(){
               <p class="text-xs font-semibold" v-if="payment.client">Cliente: <span class="text-sm text-slate-600 font-light">{{ payment.client }}</span></p>
             </section>
             <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
-              <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
               <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="deletePayment(payment.payment_id)">Eliminar</button>
             </div>
           </div>
