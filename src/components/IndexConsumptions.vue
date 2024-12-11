@@ -136,14 +136,11 @@ let HOST_FROM_EXPORT = ''
 
 // metodos select() y execute()
 onBeforeMount(async function(){
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
-  const getLastPeriod = 'select period_id, name from main.period order by period_id desc limit 1'
-  const resultPeriod = await DB.select(getLastPeriod)
-  const tempPeriod = resultPeriod.shift()
-  period.value = tempPeriod
+  period.value = await getLastPeriod()
 
   const tempPeriods = await getAllPeriods()
   filterPills.value['period'].options = tempPeriods
@@ -234,6 +231,22 @@ function selectFilter(value){
           typeFilter.value = ''
           break
     }
+}
+
+async function getLastPeriod(){
+  const selectLastPeriod = 'select period_id, name from main.period order by period_id desc limit 1'
+  const resultPeriod = await DB.select(selectLastPeriod)
+  const tempPeriod = resultPeriod.shift()
+
+  return tempPeriod
+}
+
+async function getPeriodById(period_id){
+  const selectPeriodById = `select period_id, name from main.period where period_id = ${period_id}`
+  const resultPeriod = await DB.select(selectPeriodById)
+  const tempPeriod = resultPeriod.shift()
+
+  return tempPeriod
 }
 
 async function getGeneralConsumptions(){
@@ -353,9 +366,11 @@ async function filter(){
         values.push(parseInt(item.value))
     })
 
-    queryParams.forEach(item => {
-      if (item.filter === 'period')
+    queryParams.forEach(async item => {
+      if (item.filter === 'period'){
         values.push(parseInt(item.value))
+        period.value = await getPeriodById(parseInt(item.value))
+      }
     })
 
     queryParams.forEach(item => {
@@ -385,9 +400,11 @@ async function filter(){
         values.push(parseInt(item.value))
     })
 
-    queryParams.forEach(item => {
-      if (item.filter === 'period')
+    queryParams.forEach(async item => {
+      if (item.filter === 'period'){
         values.push(parseInt(item.value))
+        period.value = await getPeriodById(parseInt(item.value))
+      }
     })
   }else if(toFilter.includes('block')){
     queryConsumptions = structuredQueries.block.query
@@ -463,6 +480,7 @@ async function removeFilter(id){
 
 async function removeFilters(){
   filters.value = []
+  period.value = await getLastPeriod()
 
   queryConsumptionsCount = structuredQueries.general.count
   queryConsumptions = structuredQueries.general.query
