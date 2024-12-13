@@ -20,6 +20,11 @@ const type_identification = {
     name: 'Monto',
     classes: 'bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-blue-100'
   },
+  cash: {
+    code: 'ch',
+    name: 'Efectivo',
+    classes: 'bg-purpple-100 text-purpple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-purpple-100'
+  },
   not_found: {
     code: 'nf',
     name: 'No identificado',
@@ -57,9 +62,21 @@ const menuUI = {
     classes: 'title text-md font-light ml-2',
     ui: ''
   },
-  payment: {
-    id: 'payment',
+  consumption: {
+    id: 'consumption',
     description: 'Consumos',
+    classes: 'title text-md font-light ml-2',
+    ui: ''
+  },
+  paymentClient: {
+    id: 'paymentClient',
+    description: 'Pagos',
+    classes: 'title text-md font-light ml-2',
+    ui: ''
+  },
+  cash: {
+    id: 'cash',
+    description: 'Efectivo',
     classes: 'title text-md font-light ml-2',
     ui: ''
   },
@@ -101,6 +118,9 @@ const structuredQueries = {
     queryClientInformationPeriod: ``,
     queryIsSupplier: `select cl.client_id from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id where cd.block = 0 and cl.client_id = $1`
   },
+  payments: {
+    queryNotAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at from main.payment py where py.account_id is null`
+  },
   period: {
     query: `select period_id, name from main.period`
   }
@@ -116,6 +136,9 @@ const type_payment = ref('')
 const period_id = ref(0)
 const periods = ref([])
 
+const paymentsToAssign = ref([])
+const paymentsToShow = ref([])
+
 const count_identifier = ref(0)
 const index_identifier = ref(0)
 const payment = ref({})
@@ -124,6 +147,7 @@ const client = ref({})
 const supplies = ref([])
 
 let match_counter = 0
+const matchedPayments = ref(0)
 
 let paymentQuery = structuredQueries.general.query
 let paymentCountQuery = structuredQueries.general.count
@@ -226,11 +250,19 @@ async function start(){
       await makeByReference()
     break
   }
+
+  const notif = {
+    title: 'Conciliación exitosa',
+    description: 'Se ha completado la conciliación de la totalidad de los pagos mostrados.'
+  }
+  notification.value = notif
+  document.getElementById('notification').style.display = 'block'
 }
 
 async function makeByReference(){
   match_counter = 0
   let temp_payments = payments.value
+  matchedPayments.value = 0
   const match = []
   let acc_count = 0
 
@@ -259,6 +291,7 @@ async function makeByReference(){
         break
     }
 
+    matchedPayments.value++
     acc_count = 0
   }
 
@@ -388,9 +421,21 @@ function filterUI(){
   typeUI.value = 'filter'
 }
 
-function paymentsUI(){
-  hideUI('payment')
-  typeUI.value = 'payments'
+function consumptionUI(){
+  hideUI('consumption')
+  typeUI.value = 'consumption'
+}
+
+async function paymentsClientUI(){
+  hideUI('paymentClient')
+  typeUI.value = 'paymentClient'
+
+  if(client.value.client_id === undefined)
+    return
+
+  const selectPaymentsFromClient = `select py.payment_id, py.description, py.amount, acc.client_id, acc.reference_bbva as reference from main.payment as py join main.account acc on py.account_id = acc.account_id where acc.client_id = $1`
+  const tempPayments = await DB.select(selectPaymentsFromClient, [client.value.client_id])
+  paymentsToShow.value = tempPayments
 }
 
 function exportFileUI(){
@@ -418,6 +463,11 @@ function hideUI(name){
         child.removeChild(childSpan)
     }
   }
+}
+
+function cashUI(){
+  hideUI('cash')
+  typeUI.value = 'cash'
 }
 
 function hideNotification(name){
@@ -700,7 +750,7 @@ async function showClientDetails(clientName, account_id, client_id){
     tempClient.total = 0
     client.value = tempClient
 
-    typeUI.value = 'payments'
+    typeUI.value = 'consumption'
   }
 }
 
@@ -713,6 +763,53 @@ async function showClientConsumption(event){
     const tempClient = client.value
     const tempConsumption = await DB.select(structuredQueries.client.queryClientInformation, [period_id, client.value.client_id])
     client.value = tempConsumption.length > 0 ? tempConsumption.shift() : tempClient
+  }
+}
+
+function isClose(a, b, relTol = 1e-9, absTol = 0) {
+    const diff = Math.abs(a - b)
+    return diff <= Math.max(relTol * Math.abs(a), absTol)
+}
+
+async function checkTolerance(event){
+  const str = event.target.value // description (string: 8-11), amount (d, d.d), tolerance (d, d%), amount:tolerance (d:d, d:d%)
+  const amountRegex = /^-?\d+(\.\d+)?:$/
+  const toleranceRegex = /^:-?\d+(\.\d+)?%?$/
+  const amountToleranceRegex = /^-?\d+(\.\d+)?%?:-?\d+(\.\d+)?%?$/
+
+  if(amountToleranceRegex.test(str) || toleranceRegex.test(str) || amountRegex.test(str)){
+    const tempPayments = await DB.select(structuredQueries.payments.queryNotAssigned)
+    paymentsToAssign.value = tempPayments
+  }
+
+  if(amountToleranceRegex.test(str)){
+    const [amount, tolerance] = str.split(':')
+    let tempPayments = paymentsToAssign.value
+    if(tolerance.includes('%')){
+      const percent = parseFloat(tolerance.replaceAll('%', ''))
+      tempPayments = tempPayments.filter(item => isClose(parseFloat(amount), item.amount, percent / 100.0, 0))
+      paymentsToAssign.value = tempPayments
+    }else{
+      tempPayments = tempPayments.filter(item => isClose(parseFloat(amount), item.amount, 0, tolerance))
+      paymentsToAssign.value = tempPayments
+    }
+  }else if(toleranceRegex.test(str)){
+    const tolerance = str.replaceAll(':', '')
+    if(tolerance.includes('%')){
+      let tempPayments = paymentsToAssign.value
+      const percent = parseFloat(tolerance.replaceAll('%', ''))
+      tempPayments = tempPayments.filter(item => isClose(client.value.total, item.amount, percent / 100.0, 0))
+      paymentsToAssign.value = tempPayments
+    }else{
+      let tempPayments = paymentsToAssign.value
+      tempPayments = tempPayments.filter(item => isClose(client.value.total, item.amount, 0, tolerance))
+      paymentsToAssign.value = tempPayments
+    }
+  }else if(amountRegex.test(str)){
+    const [amount] = str.split(':')
+    let tempPayments = paymentsToAssign.value
+    tempPayments = tempPayments.filter(item => isClose(amount, item.amount))
+    paymentsToAssign.value = tempPayments
   }
 }
 
@@ -747,10 +844,63 @@ async function assignPayment(client, account_id){
   if(payment_id === undefined)
     return
 
-  const updatePaymentSelected = `update main.payment set account_id = $1 where payment_id = $2`
+  const updatePaymentSelected = `update main.payment set account_id = $1, type_identificacion = 'am' where payment_id = $2`
   await DB.execute(updatePaymentSelected, [account_id, payment_id])
   payment.value.client = client
   await getAllPayments()
+}
+
+async function assignToClient(payment_id){
+  const updatePayment = `update main.payment set account_id = $1, validated = true, type_identificacion = 'am' where payment_id = $2`
+  const account_id = client.value.account_id
+  
+  await DB.execute(updatePayment, [account_id, payment_id])
+  paymentsToAssign.value = []
+}
+
+async function addPayment(){
+  const description = document.getElementById('paymentDescription').value
+  const amount = document.getElementById('paymentAmount').value
+  const date = document.getElementById('paymentDate').value
+
+  const notif = {
+    title: 'No se puede asignar el pago',
+    description: 'No se ha seleccionado algún cliente ó no existe información suficiente para asignar el pago.'
+  }
+
+  if(client.value.client_id === undefined || description === '' || amount === '' || date === ''){
+    notification.value = notif
+    document.getElementById('notification').style.display = 'block'
+    return
+  }
+
+  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion) values ($1, $2, $3, '${date}', true, null, null, 'ch')`
+  await DB.execute(insertPayment, [client.value.account_id, description, parseFloat(amount)])
+
+  document.getElementById('paymentDescription').value = ''
+  document.getElementById('paymentAmount').value = ''
+  document.getElementById('paymentDate').value = ''
+
+  
+  notif.title = 'Registro exitoso',
+  notif.description = 'El registro del pago en efectivo se ha realizado con éxito.'
+
+  notification.value = notif
+  document.getElementById('notification').style.display = 'block'
+}
+
+async function deletePayment(payment_id){
+  const deletePayment = `delete from main.payment where payment_id = $1`
+  await DB.execute(deletePayment, [payment_id])
+
+  await paymentsClientUI()
+}
+
+async function unassign(payment_id){
+  const unassignPayment = `update main.payment set account_id = null, validated = false, type_identificacion = null, to_download = false, downloaded = false where payment_id = $1`
+  await DB.execute(unassignPayment, [payment_id])
+
+  await paymentsClientUI()
 }
 
 async function showPerPage(value){
@@ -922,12 +1072,12 @@ async function getPreviousPayments(){
     <div class="mt-2 ml-4 flex justify-between">
       <h1 class="text-md font-bold">{{ notification.title }}</h1>
       <button class="rounded-full border p-1 hover:bg-slate-200 hover:opacity-80 mr-4" @click="hideNotification('notification')">
-        <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
           <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M6 18 17.94 6M18 18 6.06 6"/>
         </svg>        
       </button>
     </div>
-    <div class="mt-2 ml-4">
+    <div class="mt-2 ml-4 mb-4">
       <p class="text-sm font-light">{{ notification.description }}</p>
     </div>
   </div>
@@ -946,13 +1096,29 @@ async function getPreviousPayments(){
               <span id="title-conciliate" class="title text-md font-light ml-2">Conciliar</span>          
             </button>
           </div>
-          <div id="paymentsUI">
-            <button @click="paymentsUI" class="option payment flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
+          <div id="consumptionUI">
+            <button @click="consumptionUI" class="option consumption flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
               <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M12 17a2 2 0 0 1 2 2h-4a2 2 0 0 1 2-2Z"/>
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13.815 9H16.5a2 2 0 1 0-1.03-3.707A1.87 1.87 0 0 0 15.5 5 1.992 1.992 0 0 0 12 3.69 1.992 1.992 0 0 0 8.5 5c.002.098.012.196.03.293A2 2 0 1 0 7.5 9h3.388m2.927-.985v3.604M10.228 9v2.574M15 16h.01M9 16h.01m11.962-4.426a1.805 1.805 0 0 1-1.74 1.326 1.893 1.893 0 0 1-1.811-1.326 1.9 1.9 0 0 1-3.621 0 1.8 1.8 0 0 1-1.749 1.326 1.98 1.98 0 0 1-1.87-1.326A1.763 1.763 0 0 1 8.46 12.9a2.035 2.035 0 0 1-1.905-1.326A1.9 1.9 0 0 1 4.74 12.9 1.805 1.805 0 0 1 3 11.574V12a9 9 0 0 0 18 0l-.028-.426Z"/>
-              </svg>
-              <span id="title-payment" class="title text-md font-light ml-2">Consumos</span>  
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M10 6.025A7.5 7.5 0 1 0 17.975 14H10V6.025Z"/>
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13.5 3c-.169 0-.334.014-.5.025V11h7.975c.011-.166.025-.331.025-.5A7.5 7.5 0 0 0 13.5 3Z"/>
+              </svg>              
+              <span id="title-consumption" class="title text-md font-light ml-2">Consumos</span>  
+            </button>
+          </div>
+          <div id="paymentsClientUI">
+            <button @click="paymentsClientUI" class="option paymentClient flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
+              <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 18h14M5 18v3h14v-3M5 18l1-9h12l1 9M16 6v3m-4-3v3m-2-6h8v3h-8V3Zm-1 9h.01v.01H9V12Zm3 0h.01v.01H12V12Zm3 0h.01v.01H15V12Zm-6 3h.01v.01H9V15Zm3 0h.01v.01H12V15Zm3 0h.01v.01H15V15Z"/>
+              </svg>                                         
+              <span id="title-paymentClient" class="title text-md font-light ml-2">Pagos</span>  
+            </button>
+          </div>
+          <div id="cashUI">
+            <button @click="cashUI" class="option cash flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
+              <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-width="1" d="M8 7V6a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1M3 18v-7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Zm8-3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
+              </svg>                                      
+              <span id="title-cash" class="title text-md font-light ml-2">Efectivo</span>  
             </button>
           </div>
           <div id="filter">
@@ -1044,7 +1210,7 @@ async function getPreviousPayments(){
           </div>
         </div>
         <div>
-          <p class="font-normal text-black">Identificados: {{ index_identifier }} de {{ count_identifier }} </p>
+          <p class="font-normal text-black">Identificados: {{ index_identifier }} - Analizados: {{ matchedPayments }} de {{ count_identifier }} </p>
         </div>          
       </div>
     </div>
@@ -1115,6 +1281,7 @@ async function getPreviousPayments(){
             <option value="fn">Identificado</option>
             <option value="n_fn">No identificado</option>
             <option value="dw">Descargados</option>
+            <option value="ef">Efectivo</option>
           </select>
           <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
@@ -1144,11 +1311,9 @@ async function getPreviousPayments(){
         </div>
       </div>
 
-
-      <div id="pays" v-else-if="typeUI === 'payments'">
-        <h3 class="ml-2 mt-2 font-bold">Consumos</h3>
+      <div v-else-if="typeUI === 'paymentClient'">
+        <h3 class="ml-2 mt-2 font-bold">Pagos</h3>
         <div class="p-2 overflow-y-auto">
-          <input id="pattern" type="text" @keyup.enter="" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce el patrón de busqueda">
           <div class="relative w-[calc(100%)] mt-2 mb-2">
             <select id="period_filter" @change="showClientConsumption" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
               <option selected>Selecione una opción</option> 
@@ -1175,18 +1340,112 @@ async function getPreviousPayments(){
 
         <hr>
 
-        <div class="p-2 overflow-y-auto h-[48vh]">
-          <div class="border rounded-lg p-2 mb-2 shadow-md" v-for="supply in []">
-            <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
-              <h3 class="text-md font-bold">Suministro: <span class="text-slate-500 font-normal">{{ supply.client_id }}</span></h3>
+        <div class="p-2 overflow-y-auto h-[48vh] w-[calc(100%)]">
+          <div class="relative mt-2">
+            <div class="overflow-y-auto h-[37vh]">
+              <div class="border rounded-lg p-2 mb-2 mt-2 shadow-md" v-for="payment in paymentsToShow">
+                <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
+                  <h3 class="text-md font-bold">Pago: <span class="text-slate-500 font-normal">{{ payment.payment_id }}</span></h3>
+                </header>
+                <section class="flex-col space-y-1 mb-2">
+                  <p class="text-xs mt-2 font-semibold">Descripción del pago: <span class="text-slate-600 font-light">{{ payment.description }}</span></p>
+                  <p class="text-xs font-semibold">Fecha del pago: <span class="text-sm text-slate-600 font-light">{{ payment.done_at }}</span></p>
+                  <p class="text-xs font-semibold">Monto del pago: <span class="text-sm text-slate-600 font-light">$ {{ payment.amount.toLocaleString() }}</span></p>
+                  <p class="text-xs font-semibold" v-if="payment.type_identificacion">Emparejado por: 
+                    <span v-if="payment.type_identificacion === 'rf'" class="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-green-100">Referencia</span>
+                    <span v-else-if="payment.type_identificacion === 'am'" class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-blue-100">Monto</span>
+                    <span v-else-if="payment.type_identificacion === 'ch'" class="bg-purpple-100 text-purpple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-purpple-100">Efectivo</span>
+                  </p>
+                  <p class="text-xs font-semibold" v-if="payment.client">Cliente: <span class="text-sm text-slate-600 font-light">{{ payment.client }}</span></p>
+                </section>
+                <div class="mb-2 border-t border-gray-600">
+                  <button class="w-full mt-2 text-white bg-yellow-600 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="unassign(payment.payment_id)">Quitar asignación</button>
+                  <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="deletePayment(payment.payment_id)">Eliminar pago</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="pays" v-else-if="typeUI === 'cash'">
+        <h3 class="ml-2 mt-2 font-bold">Efectivo</h3>
+        <div class="border rounded-lg p-2 mb-2 shadow-md w-[calc(100%-1rem)] mt-2 ml-2" v-if="client">
+          <header class="border-b border-gray-600 pb-2">
+            <h3 class="text-sm font-semibold">ID Cliente: <span class="text-slate-500 font-normal">{{ client.client_id }}</span></h3>
+            <p class="text-[11px] text-slate-600 font-semibold"></p>
+          </header>
+          <section class="flex-col space-y-1">
+            <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ client.client }}</span></p>
+            <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ client.reference }}</span></p>
+          </section>
+        </div>
+
+        <hr>
+
+        <div class="w-[calc(100%-1rem)] mt-2 ml-2">
+          <input id="paymentDescription" type="text" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce la descripción del pago">
+          <input id="paymentAmount" type="text" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce el monto del pago">
+          <input id="paymentDate" type="text" class="border mt-2 mb-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce la fecha del pago (aaaa-mm-dd)">
+
+          <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="addPayment">Agregar</button>
+        </div>
+      </div>
+
+      <div id="pays" v-else-if="typeUI === 'consumption'">
+        <h3 class="ml-2 mt-2 font-bold">Consumos</h3>
+        <div class="p-2 overflow-y-auto">
+          <div class="relative w-[calc(100%)] mt-2 mb-2">
+            <select id="period_filter" @change="showClientConsumption" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+              <option selected>Selecione una opción</option> 
+              <option :value="period.period_id" v-for="period in periods">{{ period.name }}</option>
+            </select>
+            <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+            </svg>              
+          </div>
+          <div class="border rounded-lg p-2 mb-2 shadow-md" v-if="client">
+            <header class="border-b border-gray-600 pb-2">
+              <h3 class="text-sm font-semibold">ID Cliente: <span class="text-slate-500 font-normal">{{ client.client_id }}</span></h3>
+              <p class="text-[11px] text-slate-600 font-semibold"></p>
             </header>
-            <section class="flex-col space-y-1 mb-2">
-              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ supply.client }}</span></p>
-              <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ supply.reference }}</span></p>
+            <section class="flex-col space-y-1">
+              <p class="text-xs mt-2 font-semibold">Nombre: <span class="text-slate-600 font-light">{{ client.client }}</span></p>
+              <p class="text-xs font-semibold">Referencia: <span class="text-sm text-slate-600 font-light">{{ client.reference }}</span></p>
+              <p class="text-xs font-semibold">Consumo: <span class="text-sm text-slate-600 font-light">{{ client.liters }} Lts.</span></p>
+              <p class="text-xs font-semibold">Adeudo: <span class="text-sm text-slate-600 font-light">$ {{ client.debt }}</span></p>
+              <p class="text-xs font-semibold">Total: <span class="text-sm text-slate-600 font-light">$ {{ client.total }}</span></p>
             </section>
-            <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
-              <button @click="" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Asignar</button>
-              <button class="w-full mt-2 text-white bg-red-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Eliminar</button>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="p-2 overflow-y-auto h-[48vh] w-[calc(100%)]">
+          <input id="tolerance" type="text" @keyup.enter="checkTolerance" class="border mt-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce referencia ó la cifra de tolerancia (% ó $)">
+
+          <div class="relative mt-2">
+            <div class="overflow-y-auto h-[37vh]">
+              <div class="border rounded-lg p-2 mb-2 mt-2 shadow-md" v-for="payment in paymentsToAssign">
+                <header class="border-b border-gray-600 pb-2 flex justify-between items-center">
+                  <h3 class="text-md font-bold">Pago: <span class="text-slate-500 font-normal">{{ payment.payment_id }}</span></h3>
+                </header>
+                <section class="flex-col space-y-1 mb-2">
+                  <p class="text-xs mt-2 font-semibold">Descripción del pago: <span class="text-slate-600 font-light">{{ payment.description }}</span></p>
+                  <p class="text-xs font-semibold">Fecha del pago: <span class="text-sm text-slate-600 font-light">{{ payment.done_at }}</span></p>
+                  <p class="text-xs font-semibold">Monto del pago: <span class="text-sm text-slate-600 font-light">$ {{ payment.amount.toLocaleString() }}</span></p>
+                  <p class="text-xs font-semibold" v-if="payment.type_identificacion">Emparejado por: 
+                    <span v-if="payment.type_identificacion === 'rf'" class="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-green-100">Referencia</span>
+                    <span v-else-if="payment.type_identificacion === 'am'" class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-blue-100">Monto</span>
+                    <span v-else-if="payment.type_identificacion === 'ch'" class="bg-purpple-100 text-purpple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-purpple-100">Efectivo</span>
+                  </p>
+                  <p class="text-xs font-semibold" v-if="payment.client">Cliente: <span class="text-sm text-slate-600 font-light">{{ payment.client }}</span></p>
+                </section>
+                <div class="flex justify-around gap-2 mb-2 border-t border-gray-600">
+                  <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="assignToClient(payment.payment_id)">Asignar</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

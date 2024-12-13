@@ -14,6 +14,11 @@ const type_identification = {
     code: 'am',
     name: 'Monto',
     classes: 'bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-blue-100'
+  },
+  cash: {
+    code: 'ch',
+    name: 'Efectivo',
+    classes: 'bg-purpple-100 text-purpple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-md border border-purpple-100'
   }
 }
 let DB = {  }
@@ -26,7 +31,7 @@ const salt_validations = ref(10)
 let PROVEE_TEST = ''
 
 onBeforeMount(async function () {
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
 
   DB = await Database.load(PROVEE_TEST)
   await getGeneralValidations()
@@ -44,6 +49,8 @@ async function getGeneralValidations(){
       item.identification = type_identification.reference
     else if(item.type_identificacion === 'am')
       item.identification = type_identification.amount
+    else if(item.type_identificacion === 'ch')
+      item.identification = type_identification.cash
   }
 
   validations.value = tempValidations
