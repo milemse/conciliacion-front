@@ -168,7 +168,7 @@ let HOST_FROM_EXPORT = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
 
@@ -433,7 +433,7 @@ async function paymentsClientUI(){
   if(client.value.client_id === undefined)
     return
 
-  const selectPaymentsFromClient = `select py.payment_id, py.description, py.amount, acc.client_id, acc.reference_bbva as reference from main.payment as py join main.account acc on py.account_id = acc.account_id where acc.client_id = $1`
+  const selectPaymentsFromClient = `select py.payment_id, py.description, py.done_at, py.amount, acc.client_id, acc.reference_bbva as reference from main.payment as py join main.account acc on py.account_id = acc.account_id where acc.client_id = $1`
   const tempPayments = await DB.select(selectPaymentsFromClient, [client.value.client_id])
   paymentsToShow.value = tempPayments
 }

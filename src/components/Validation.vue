@@ -31,7 +31,7 @@ const salt_validations = ref(10)
 let PROVEE_TEST = ''
 
 onBeforeMount(async function () {
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
 
   DB = await Database.load(PROVEE_TEST)
   await getGeneralValidations()
