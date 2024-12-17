@@ -210,7 +210,7 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
             // Obtener ultimo periodo
             const getLastPeriod = 'select period_id from main.period order by period_id desc limit 1'
             const resultPeriod = await db.select(getLastPeriod)
-            const period_id = resultPeriod.shift().period_id
+            let period_id = resultPeriod.shift().period_id
 
             if(in_period_id !== 0)
                 period_id = in_period_id
@@ -283,13 +283,6 @@ function formatDate(date){
         return `20${year}-${month}-${day}`
     else
         return `${year}-${day}-${month}`
-}
-
-function formatDateToExcel(date){
-    const partsOfDate = date.split('/')
-    const [ day, month, year ] = partsOfDate
-
-    return `${year}/${month}/${day}`
 }
 
 function resetLinker(linker) {

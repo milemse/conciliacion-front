@@ -123,6 +123,9 @@ const structuredQueries = {
   },
   period: {
     query: `select period_id, name from main.period`
+  },
+  makeByReference: {
+    query: `select acc.reference_bbva as reference from main.account acc where $1 ilike '%' || acc.reference_bbva || '%' or $2 ilike '%' || substring(acc.reference_bbva, 4, 11) || '%'`
   }
 }
 let DB = { }
@@ -168,7 +171,7 @@ let HOST_FROM_EXPORT = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
 
@@ -231,7 +234,7 @@ async function exportFile(){
   await writeTextFile(PATH_FROM_EXPORT, JSON.stringify({ path: `${selectedFilePath.value}` })) // TODO
 
   const response = await fetch(HOST_FROM_EXPORT, { method: 'GET' }) // TODO
-  console.log(response)
+  console.log(response.body)
 
   notification.value.title = 'Exportación completa'
   notification.value.description = 'Se ha completado la exportación de los pagos.'
@@ -270,6 +273,15 @@ async function makeByReference(){
   index_identifier.value = 0
 
   for(let item of temp_payments){
+    const description = new String(item.description).replaceAll(' ', '').toLowerCase()
+    const account = await DB.select(structuredQueries.makeByReference.query, [description, description])
+    if(account.length > 0){
+      match.push({ reference_payment: item.reference, description: item.description, reference: account.shift().reference })
+      match_counter++
+      index_identifier.value++
+    }
+
+    /*
     while(true){
       const accounts = await DB.select(`select a.reference_bbva from main.account a limit 50 offset ${acc_count}`)
       acc_count = acc_count + 50
@@ -289,7 +301,7 @@ async function makeByReference(){
 
       if(accounts.length === 0)
         break
-    }
+    }*/
 
     matchedPayments.value++
     acc_count = 0

@@ -381,7 +381,7 @@ async function addPayment(){
     return
   }
 
-  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion) values ($1, $2, $3, '${date}', false, null, null, 'ch')`
+  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion, reference) values ($1, $2, $3, '${date}', false, null, null, 'ch', '00000000-9:9')`
   await DB.execute(insertPayment, [client.value.account_id, description, parseFloat(amount)])
 
   await getGeneralConsumptions()
