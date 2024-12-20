@@ -685,7 +685,6 @@ async function validate(){
   for(let item of temp){
     if(item.client_reference !== ''){
       validatePayments.push(item)
-      
       item.type_validation = type_validation.valid
     }
   }
@@ -695,12 +694,10 @@ async function validate(){
     const resultAccount = await DB.select(selectAccountId, [item.client_reference])
     const account_id = resultAccount.shift().account_id
 
-    const selectPaymentId = `select payment_id from main.payment where reference = $1`
-    const resultPayment = await DB.select(selectPaymentId, [item.reference])
-    const payment_id = resultPayment.shift().payment_id 
+    const payment_id = item.payment_id
 
     const updatePayment = `update main.payment set account_id = $1, validated = true, type_identificacion = $2 where payment_id = $3`
-    await DB.execute(updatePayment, [parseInt(account_id), item.identification.code, payment_id])
+    const result = await DB.execute(updatePayment, [parseInt(account_id), item.identification.code, payment_id])
   }
 
   payments.value = []
@@ -886,7 +883,7 @@ async function addPayment(){
     return
   }
 
-  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion) values ($1, $2, $3, '${date}', true, null, null, 'ch')`
+  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion, reference) values ($1, $2, $3, '${date}', true, null, null, 'ch', '00000000-9:9')`
   await DB.execute(insertPayment, [client.value.account_id, description, parseFloat(amount)])
 
   document.getElementById('paymentDescription').value = ''
@@ -1103,8 +1100,8 @@ async function getPreviousPayments(){
           <div id="conciliate">
             <button @click="conciliate" class="option conciliate flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
               <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 18h14M5 18v3h14v-3M5 18l1-9h12l1 9M16 6v3m-4-3v3m-2-6h8v3h-8V3Zm-1 9h.01v.01H9V12Zm3 0h.01v.01H12V12Zm3 0h.01v.01H15V12Zm-6 3h.01v.01H9V15Zm3 0h.01v.01H12V15Zm3 0h.01v.01H15V15Z"/>
-              </svg>
+                <path stroke="currentColor" stroke-linecap="round" stroke-width="1" d="M6 4v10m0 0a2 2 0 1 0 0 4m0-4a2 2 0 1 1 0 4m0 0v2m6-16v2m0 0a2 2 0 1 0 0 4m0-4a2 2 0 1 1 0 4m0 0v10m6-16v10m0 0a2 2 0 1 0 0 4m0-4a2 2 0 1 1 0 4m0 0v2"/>
+              </svg>              
               <span id="title-conciliate" class="title text-md font-light ml-2">Conciliar</span>          
             </button>
           </div>
