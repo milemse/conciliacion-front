@@ -9,7 +9,8 @@ import Database from '@tauri-apps/plugin-sql'
 
 import { linker_payments } from '../utils/linker_payments'
 import { linker_consumptions } from '../utils/linker_consumptions'
-import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions } from '../services/excel'
+import { linker_tanks } from '../utils/linker_tanks'
+import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions, getTanksInformation } from '../services/excel'
 
 const type_upload = {
   upload: {
@@ -27,15 +28,42 @@ const paymentsToShow = ref([])
 let totalOfPayments = []
 const consumptionsToShow = ref([])
 let totalOfConsumptions = []
+const tanksToShow = ref([])
+let totalOfTanks = []
 const count = ref(0)
-const toShowType = ref(false)
-const periods = ref([])
-const period_id = ref(0)
+const toShowType = ref('')
+const param_id = ref(0)
 let fileType = ''
 const position = ref({
     start: 0,
     end: 10,
     salt: 10
+})
+
+const options = {
+    period: {
+        name: 'Selecciona un periodo',
+        options: [] //
+    },
+    block: {
+        name: 'Selecciona un bloque',
+        options: [
+            { value: 1, name: 'Bloque 1' },
+            { value: 2, name: 'Bloque 2' },
+            { value: 3, name: 'Bloque 3' },
+            { value: 4, name: 'Bloque 4' }
+        ]
+    }
+}
+
+const optionsToShow = ref({
+    name: '',
+    options: []
+})
+
+const notification = ref({
+  title: '',
+  description: ''
 })
 
 let PROVEE_TEST = ''
@@ -44,8 +72,48 @@ let PROVEE_TEST = ''
 onBeforeMount(async function () {
     PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
     DB = await Database.load(PROVEE_TEST)
-    await getAllPeriods()
 })
+
+async function selectOption(){
+    const selectPeriodsBanks = `select period_id, name from main.period where type = 'PAYS'`
+    const selectPeriodsBlocks = `select period_id, name from main.period where type = 'CONS'`
+
+    const fileTypeInput = document.getElementById('fileType')
+    const selectedIndex = fileTypeInput.selectedIndex
+    fileType = fileTypeInput.options[selectedIndex].value
+
+    const tempOptionsToShow = {
+        name: '',
+        options: []
+    }
+    let tempPeriods = []
+
+    switch(fileType){
+        case 'fz':
+            tempPeriods = await DB.select(selectPeriodsBanks)
+            options.period.options = tempPeriods
+            tempOptionsToShow.name = options.period.name
+            tempOptionsToShow.options = options.period.options
+
+            optionsToShow.value = tempOptionsToShow
+        break
+        case 'rd':
+            tempPeriods = await DB.select(selectPeriodsBlocks)
+            options.period.options = tempPeriods
+            tempOptionsToShow.name = options.period.name
+            tempOptionsToShow.options = options.period.options
+
+            optionsToShow.value = tempOptionsToShow
+        break
+        case 'tk':
+            options.period.options = tempPeriods
+            tempOptionsToShow.name = options.block.name
+            tempOptionsToShow.options = options.block.options
+
+            optionsToShow.value = tempOptionsToShow
+        break
+    }
+}
 
 async function start(){
     const fileTypeInput = document.getElementById('fileType')
@@ -64,11 +132,16 @@ async function start(){
                 directory: false,
                 filters: [ { name: "Archivo de pagos", extensions: ["xlsx"] } ]
             })
-            toUploadFile = await readFile(selectedFile)
-            workbook = read(toUploadFile)
-            showPayments(workbook)
-            toShowType.value = true
-
+            if(selectedFile !== null){
+                toUploadFile = await readFile(selectedFile)
+                workbook = read(toUploadFile)
+                showPayments(workbook)
+                toShowType.value = 'fz'
+            }else{
+                notification.value.title = 'Archivo no seleccionado'
+                notification.value.description = 'No se ha seleccionado un archivo para cargar los pagos.'
+                document.getElementById('notification').style.display = 'block'
+            }
         break
         case 'rd':
             selectedFile = await open({
@@ -77,11 +150,34 @@ async function start(){
                 directory: false,
                 filters: [ { name: "Archivo de consumos", extensions: ["xlsx"] } ]
             })
-            toUploadFile = await readFile(selectedFile)
-            workbook = read(toUploadFile)
-            showConsumptions(workbook)
-            toShowType.value = false
-
+            if(selectedFile !== null){
+                toUploadFile = await readFile(selectedFile)
+                workbook = read(toUploadFile)
+                showConsumptions(workbook)
+                toShowType.value = 'rd'
+            }else{
+                notification.value.title = 'Archivo no seleccionado'
+                notification.value.description = 'No se ha seleccionado un archivo para cargar los consumos.'
+                document.getElementById('notification').style.display = 'block'
+            }
+        break
+        case 'tk':
+            selectedFile = await open({
+                title: 'Selecciona tu archivo',
+                multiple: false,
+                directory: false,
+                filters: [ { name: "Archivo de tanques", extensions: ["xlsx"] } ]
+            })
+            if(selectedFile !== null){
+                toUploadFile = await readFile(selectedFile)
+                workbook = read(toUploadFile)
+                showTanks(workbook)
+                toShowType.value = 'tk'
+            }else{
+                notification.value.title = 'Archivo no seleccionado'
+                notification.value.description = 'No se ha seleccionado un archivo para cargar las lecturas de tanques.'
+                document.getElementById('notification').style.display = 'block'
+            }
         break
     }
 
@@ -96,9 +192,14 @@ async function upload() {
             paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
         break
         case 'rd':
-            await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload, period_id.value)
+            await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload, param_id.value)
             consumptionsToShow.value = []
             consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
+        break
+        case 'tk':
+            await uploadTanks(DB, totalOfTanks, type_upload.upload)
+            tanksToShow.value = []
+            tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
         break
     }
 }
@@ -120,16 +221,20 @@ function showConsumptions(workbook){
     consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
 }
 
-function getPeriodId(value){
-    if(!isNaN(value.target.value))
-        period_id.value = parseInt(value.target.value)
+function showTanks(workbook){
+    totalOfTanks = getTanksInformation(workbook, linker_tanks, param_id.value, type_upload)
+    count.value = totalOfTanks.length
+    tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 
-async function getAllPeriods(){
-  const selectPeriods = `select pr.period_id as id, pr.name as name from main.period pr`
-  const tempPeriods = await DB.select(selectPeriods)
+function getParamId(value){
+    if(!isNaN(value.target.value))
+        param_id.value = parseInt(value.target.value)
+}
 
-  periods.value = tempPeriods
+function hideNotification(name){
+  const notification = document.getElementById(name)
+  notification.style.display = 'none'
 }
 
 function getPrevious(){
@@ -140,10 +245,12 @@ function getPrevious(){
     position.value.start = position.value.start < 0 ? 0 : position.value.start - position.value.salt
     position.value.end = position.value.end === 0 ? 10 : position.value.end - position.value.salt
 
-    if(toShowType.value)
+    if(toShowType.value === 'fz')
         paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
-    else 
+    else if(toShowType.value === 'rd')
         consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
+    else if(toShowType.value === 'tk')
+        tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 
 function getNext(){
@@ -154,30 +261,46 @@ function getNext(){
     position.value.start += position.value.salt
     position.value.end += position.value.salt
     
-    if(toShowType.value)
+    if(toShowType.value === 'fz')
         paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
-    else
+    else if(toShowType.value === 'rd')
         consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
+    else if(toShowType.value === 'tk')
+        tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 </script>
 <template>
+    <div id="notification" style="display: none;" class="fixed mb-4 top-4 right-4 w-96 bg-white border rounded-xl flex-col z-50">
+        <div class="mt-2 ml-4 flex justify-between">
+          <h1 class="text-md font-bold">{{ notification.title }}</h1>
+          <button class="rounded-full border p-1 hover:bg-slate-200 hover:opacity-80 mr-4" @click="hideNotification('notification')">
+            <svg class="w-5 h-5 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M6 18 17.94 6M18 18 6.06 6"/>
+            </svg>        
+          </button>
+        </div>
+        <div class="mt-2 ml-4 mb-4">
+          <p class="text-sm font-light">{{ notification.description }}</p>
+        </div>
+    </div>
     <h1 class="mt-4 ml-6 text-md font-semibold">Carga de pagos</h1>
     <div class="flex mt-4">
         <div class="relative mx-4 w-3/5">
-            <select id="fileType" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+            <select id="fileType" @change="selectOption" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
                 <option selected>Selecione una opción</option> 
                 <option value="fz">Pagos del área de Finanzas</option>
                 <option value="rd">Consumos del área de Residenciales</option>
+                <option value="tk">Lectura de tanques</option>
             </select>
             <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
             </svg>              
         </div>
         <div class="relative mr-2 w-2/5">
-            <select @change="getPeriodId" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
-                <option selected>Selecione un periodo</option> 
-                <option :value="`${period.id}`" v-for="period in periods">
-                    {{ period.name }}
+            <select @change="getParamId" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+                <option selected>{{ optionsToShow.name }}</option> 
+                <option :value="`${option.value}`" v-for="option in optionsToShow.options">
+                    {{ option.name }}
                 </option>
             </select>
             <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
@@ -189,10 +312,9 @@ function getNext(){
         <button @click="upload" class="w-[100px] ml-2 mr-6 text-white bg-green-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 px-2">Subir</button>
     </div>
 
-    <div class="max-w-full border mt-4 mx-4" v-if="toShowType">
+    <div class="max-w-full border mt-4 mx-4" v-if="toShowType === 'fz'">  
         <div class="py-2 mx-4">
-            <h3 class="text-xl font-medium">Transacciones</h3>
-            <p class="text-md text-gray-500">Esta es una lista de los pagos a cargar</p>
+            <h3 class="text-xl font-medium">Pagos</h3>
         </div>
         <div class="flex flex-col overflow-x-auto overflow-y-auto inline-block min-w-full align-middle overflow-hidden">
             <table class="sm:rounded-lg min-w-full divide-y">
@@ -220,10 +342,9 @@ function getNext(){
         </div>
     </div>
 
-    <div class="max-w-full border mt-4 mx-4" v-else>
+    <div class="max-w-full border mt-4 mx-4" v-else-if="toShowType === 'rd'">
         <div class="py-2 mx-4">
             <h3 class="text-xl font-medium">Consumos</h3>
-            <p class="text-md text-gray-500">Esta es una lista de los consumos a cargar</p>
         </div>
         <div class="flex flex-col overflow-x-auto overflow-y-auto inline-block min-w-full align-middle overflow-hidden">
             <table class="sm:rounded-lg min-w-full divide-y">
@@ -244,6 +365,34 @@ function getNext(){
                         <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">$ {{ consumption.total.toLocaleString() }}</td>
                         <td class="p-2 whitespace-nowrap">
                             <span :class="consumption.upload.classes">{{ consumption.upload.name }}</span>
+                        </td>
+                    </tr>                 
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="max-w-full border mt-4 mx-4" v-else-if="toShowType === 'tk'">
+        <div class="py-2 mx-4">
+            <h3 class="text-xl font-medium">Lectura de tanques</h3>
+        </div>
+        <div class="flex flex-col overflow-x-auto overflow-y-auto inline-block min-w-full align-middle overflow-hidden">
+            <table class="sm:rounded-lg min-w-full divide-y">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">ID Tanque</th>
+                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Inicial</th>
+                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Final</th>
+                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Cargado</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    <tr class="odd:bg-white even:bg-gray-100" v-for="tank in tanksToShow">
+                        <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">{{ tank.id }}</td>
+                        <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ tank.initial }}%</td>
+                        <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ tank.final }}%</td>
+                        <td class="p-2 whitespace-nowrap">
+                            <span :class="tank.upload.classes">{{ tank.upload.name }}</span>
                         </td>
                     </tr>                 
                 </tbody>

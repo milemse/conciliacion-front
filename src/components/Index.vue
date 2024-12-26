@@ -80,6 +80,12 @@ const menuUI = {
     classes: 'title text-md font-light ml-2',
     ui: ''
   },
+  report: {
+    id: 'report',
+    description: 'Reportes',
+    classes: 'title text-md font-light ml-2',
+    ui: ''
+  },
   exportFile: {
     id: 'exportFile',
     description: 'Exportar',
@@ -167,13 +173,15 @@ const notification = ref({
 let PROVEE_TEST = ''
 let PATH_FROM_EXPORT = ''
 let HOST_FROM_EXPORT = ''
+let REPORT_PROD = ''
 
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_PROD' })
+  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
+  REPORT_PROD = await invoke('get_enviroment_variable', { name: 'REPORT_PROD' })
 
   DB = await Database.load(PROVEE_TEST) // TODO
 
@@ -450,6 +458,15 @@ async function paymentsClientUI(){
   paymentsToShow.value = tempPayments
 }
 
+async function reportUI(){
+  hideUI('report')
+  typeUI.value = 'report'
+
+  const selectPeriods = `select pr.period_id, pr.name from main.period pr where pr.type = 'CONS'`
+  const tempPeriods = await DB.select(selectPeriods)
+  periods.value = tempPeriods
+}
+
 function exportFileUI(){
   hideUI('exportFile')
   typeUI.value = 'exportFile'
@@ -485,6 +502,24 @@ function cashUI(){
 function hideNotification(name){
   const notification = document.getElementById(name)
   notification.style.display = 'none'
+}
+
+async function getReports(){
+  const selectPeriod = document.getElementById('period_report')
+  const selectedIndexPeriod = selectPeriod.selectedIndex
+  const period_str = selectPeriod.options[selectedIndexPeriod].value
+
+  const selectBlock = document.getElementById('block_report')
+  const selectedIndexBlock = selectBlock.selectedIndex
+  const block_str = selectBlock.options[selectedIndexBlock].value
+
+  if(!isNaN(period_str) && !isNaN(block_str)){
+    const period = parseInt(period_str)
+    const block = parseInt(block_str)
+
+    await writeTextFile(REPORT_PROD, JSON.stringify({ period_id: `${period}`, block_id: `${block}` })) 
+    const response = await fetch(HOST_FROM_EXPORT + 'reports', { method: 'GET' }) 
+  }
 }
 
 async function getAllPayments(period){
@@ -1138,6 +1173,14 @@ async function getPreviousPayments(){
               <span id="title-filter" class="title text-md font-light ml-2">Filtrar</span>          
             </button>
           </div>
+          <div id="report">
+            <button @click="reportUI" class="option report flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
+              <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M10 3v4a1 1 0 0 1-1 1H5m4 10v-2m3 2v-6m3 6v-3m4-11v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7.914a1 1 0 0 1 .293-.707l3.914-3.914A1 1 0 0 1 9.914 3H18a1 1 0 0 1 1 1Z"/>
+              </svg>              
+              <span id="title-report" class="title text-md font-light ml-2">Reportes</span>          
+            </button>
+          </div>
           <div id="export">
             <button @click="exportFileUI" class="option exportFile flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
               <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
@@ -1400,6 +1443,35 @@ async function getPreviousPayments(){
 
           <button class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="addPayment">Agregar</button>
         </div>
+      </div>
+
+      <div id="pays" v-else-if="typeUI === 'report'">
+        <h3 class="ml-2 mt-2 font-bold">Reportes</h3>
+
+        <div class="relative w-[calc(96%)] ml-1 mt-2">
+          <select id="period_report" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+            <option selected>Selecione un periodo</option> 
+            <option :value="period.period_id" v-for="period in periods">{{ period.name }}</option>
+          </select>
+          <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+          </svg>              
+        </div>
+
+        <div class="relative w-[calc(96%)] ml-1 mt-2">
+          <select id="block_report" class="w-full bg-transparent text-xs placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-md pl-3 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+            <option selected>Selecione un bloque</option> 
+            <option value="1">Bloque 1</option>
+            <option value="2">Bloque 2</option>
+            <option value="3">Bloque 3</option>
+            <option value="4">Bloque 4</option>
+          </select>
+          <svg class="w-5 h-5 text-gray-800 absolute top-2 right-2 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+          </svg>              
+        </div>
+
+        <button class="w-[calc(96%)] ml-1 mt-2 text-white bg-green-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2" @click="getReports">Descargar reportes</button>
       </div>
 
       <div id="pays" v-else-if="typeUI === 'consumption'">

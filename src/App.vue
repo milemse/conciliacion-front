@@ -4,13 +4,11 @@ import Index from './components/Index.vue'
 import IndexConsumptions from './components/IndexConsumptions.vue'
 import Upload from './components/Upload.vue'
 import Validation from './components/Validation.vue'
-import Dashboard from './components/Dashboard.vue'
 
 const routes = {
     '/': Index,
     '/upload': Upload,
-    '/validation': Validation,
-    '/dashboard': Dashboard
+    '/validation': Validation
 }
 const classes = {
   'selected': 'border p-2 rounded-lg shadow-md text-gray-700',
@@ -20,7 +18,6 @@ const currentPath = ref(window.location.hash)
 const mainClasses = ref(classes.selected)
 const uploadClasses = ref(classes.not_selected)
 const validationClasses = ref(classes.not_selected)
-const dashboardClasses = ref(classes.not_selected)
 window.addEventListener('hashchange', () => {
   currentPath.value = window.location.hash
 
@@ -29,25 +26,21 @@ window.addEventListener('hashchange', () => {
       mainClasses.value = classes.selected
       uploadClasses.value = classes.not_selected
       validationClasses.value = classes.not_selected
-      dashboardClasses.value = classes.not_selected
     break
     case '#/upload':
       mainClasses.value = classes.not_selected
       uploadClasses.value = classes.selected
       validationClasses.value = classes.not_selected
-      dashboardClasses.value = classes.not_selected
     break
     case '#/validation':
       mainClasses.value = classes.not_selected
       uploadClasses.value = classes.not_selected
       validationClasses.value = classes.selected
-      dashboardClasses.value = classes.not_selected
     break
     case '#/dashboard':
       mainClasses.value = classes.not_selected
       uploadClasses.value = classes.not_selected
       validationClasses.value = classes.not_selected
-      dashboardClasses.value = classes.selected
     break
   }
 })
@@ -64,7 +57,6 @@ const currentView = computed(() => {
         <a :class="mainClasses" href="#/">Principal</a>
         <a :class="uploadClasses" href="#/upload">Carga</a>
         <a :class="validationClasses" href="#/validation">Validación</a>
-        <a :class="dashboardClasses" href="#/dashboard">Reportes</a>
       </div>
     </div>
       

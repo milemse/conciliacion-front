@@ -182,6 +182,32 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
     return consumptions
 }
 
+export function getTanksInformation(workbook, linker_tanks, block, typeUpload){
+    const sheet = workbook.Sheets[`BLOQUE ${block}`]
+    let index = 2
+    const tanks = []
+
+    for (let idx = index; idx < 200; idx++){
+        index = 2
+        const tank = {
+            id: sheet[`${linker_tanks.id.column}${idx}`] ? sheet[`${linker_tanks.id.column}${idx}`].v : 0,
+            initial: sheet[`${linker_tanks.initial.column}${idx}`] ? sheet[`${linker_tanks.initial.column}${idx}`].v : 0,
+            final: sheet[`${linker_tanks.final.column}${idx}`] ? sheet[`${linker_tanks.final.column}${idx}`].v : 0,
+            upload: typeUpload.not_upload
+        }
+
+        if(index == 0 && !tank.id)
+            break
+
+        if(tank.id)
+            tanks.push(tank)
+
+        index--
+    }
+
+    return tanks
+}
+
 export async function uploadPayments(db, payments, upload){
     for (let item of payments) {
         const fecha = item.done_at
@@ -229,6 +255,21 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
             await db.execute(insertConsumption, [parseFloat(consumption.factor), parseFloat(consumption.admon), parseFloat(consumption.m3), parseFloat(consumption.liters), parseFloat(consumption.debt), parseFloat(consumption.total), reading_id])
 
             consumption.upload = upload
+        }
+    }
+}
+
+export async function uploadTanks(db, tanks, upload){
+    const insertTank = `insert into main.reading_tank(tank_id, last_reading, current_reading, done_at) values($1, $2, $3, now())`
+
+    for (let item of tanks) {
+        const tank_id = item.id
+        const last_reading = item.initial
+        const current_reading = item.final
+
+        if(!isNaN(tank_id) && !isNaN(last_reading) && !isNaN(current_reading)){
+            await db.execute(insertTank, [parseInt(tank_id), parseFloat(last_reading), parseFloat(current_reading)])
+            item.upload = upload
         }
     }
 }
