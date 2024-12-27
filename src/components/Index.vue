@@ -8,6 +8,7 @@ import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { invoke } from '@tauri-apps/api/core'
 
 import { downloadPayments } from '../services/excel'
+import { Command } from '@tauri-apps/plugin-shell'
 
 const type_identification = {
   reference: {
@@ -238,6 +239,8 @@ async function selectFile(){
 }
 
 async function exportFile(){
+  await Command.create('pm2', ['start', '/Users/fmontoya/Gasu/Download/src/main.js']).execute()
+
   await downloadPayments(payments.value, DB)
   await writeTextFile(PATH_FROM_EXPORT, JSON.stringify({ path: `${selectedFilePath.value}`, period_id: period_id.value })) // TODO
   await fetch(HOST_FROM_EXPORT, { method: 'GET' }) // TODO
