@@ -10,7 +10,7 @@ import Database from '@tauri-apps/plugin-sql'
 import { linker_payments } from '../utils/linker_payments'
 import { linker_consumptions } from '../utils/linker_consumptions'
 import { linker_tanks } from '../utils/linker_tanks'
-import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions, getTanksInformation } from '../services/excel'
+import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions, getTanksInformation, uploadTanks } from '../services/excel'
 
 const type_upload = {
   upload: {

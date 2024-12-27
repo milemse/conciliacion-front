@@ -239,10 +239,8 @@ async function selectFile(){
 
 async function exportFile(){
   await downloadPayments(payments.value, DB)
-  await writeTextFile(PATH_FROM_EXPORT, JSON.stringify({ path: `${selectedFilePath.value}` })) // TODO
-
-  const response = await fetch(HOST_FROM_EXPORT, { method: 'GET' }) // TODO
-  console.log(response.body)
+  await writeTextFile(PATH_FROM_EXPORT, JSON.stringify({ path: `${selectedFilePath.value}`, period_id: period_id.value })) // TODO
+  await fetch(HOST_FROM_EXPORT, { method: 'GET' }) // TODO
 
   notification.value.title = 'Exportación completa'
   notification.value.description = 'Se ha completado la exportación de los pagos.'

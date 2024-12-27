@@ -191,8 +191,8 @@ export function getTanksInformation(workbook, linker_tanks, block, typeUpload){
         index = 2
         const tank = {
             id: sheet[`${linker_tanks.id.column}${idx}`] ? sheet[`${linker_tanks.id.column}${idx}`].v : 0,
-            initial: sheet[`${linker_tanks.initial.column}${idx}`] ? sheet[`${linker_tanks.initial.column}${idx}`].v : 0,
-            final: sheet[`${linker_tanks.final.column}${idx}`] ? sheet[`${linker_tanks.final.column}${idx}`].v : 0,
+            initial: sheet[`${linker_tanks.initial.column}${idx}`] ? parseInt(parseFloat(sheet[`${linker_tanks.initial.column}${idx}`].v) * 100) : 0,
+            final: sheet[`${linker_tanks.final.column}${idx}`] ? parseInt(parseFloat(sheet[`${linker_tanks.final.column}${idx}`].v) * 100) : 0,
             upload: typeUpload.not_upload
         }
 
@@ -277,10 +277,10 @@ export async function uploadTanks(db, tanks, upload){
 export async function downloadPayments(payments, db){
     const to_download_update = `update main.payment set to_download = true where payment_id = $1`
 
-    payments.forEach(async item => {
-        if(item.account_id !== null)
-            await db.execute(to_download_update, [item.payment_id])
-    })
+    for(let payment of payments){
+        if(payment.account_id !== null)
+            await db.execute(to_download_update, [parseInt(payment.payment_id)]) 
+    }
 }
 
 export function downloadConsumptions(workbook, linker){
