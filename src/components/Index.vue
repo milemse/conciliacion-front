@@ -287,28 +287,6 @@ async function makeByReference(){
       index_identifier.value++
     }
 
-    /*
-    while(true){
-      const accounts = await DB.select(`select a.reference_bbva from main.account a limit 50 offset ${acc_count}`)
-      acc_count = acc_count + 50
-
-      accounts.forEach(account => {
-        const description = new String(item.description).replaceAll(' ', '').toLowerCase()
-        const reference = new String(account.reference_bbva).replaceAll(' ', '')
-        const rightSubReference = reference.slice(reference.length - 8)
-
-        if(description.includes(reference) || description.includes(rightSubReference)){
-          match_counter++
-          match.push({ reference_payment: item.reference, description, reference })
-          index_identifier.value++
-          return
-        }
-      })
-
-      if(accounts.length === 0)
-        break
-    }*/
-
     matchedPayments.value++
     acc_count = 0
   }
