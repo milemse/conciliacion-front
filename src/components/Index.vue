@@ -1108,7 +1108,7 @@ async function getPreviousPayments(){
   <!-- BANCOS -->
   <div id="banks" class="flex mr-6 min-w-[800px] min-h-[600px]">
     <div class="sm:max-w-[80vw] sm:w-[80vw] border max-h-screen mt-4 mx-4 shadow-md">
-      <div class="py-2 mx-4 flex justify-between">
+      <div class="py-2 mx-4 flex justify-between overflow-scroll">
         <h3 class="text-md font-bold">Todos los pagos</h3>
         <div class="flex gap-4 items-center">
           <div id="conciliate">

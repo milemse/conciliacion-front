@@ -802,8 +802,8 @@ async function getNextConsumptions(){
     </div>
 
     <div class="sm:max-w-[80vw] sm:w-[80vw] border max-h-screen mt-4 mx-4 shadow-md">
-      <div class="py-2 mx-4 flex justify-between">
-        <h3 class="text-md font-bold">Todos los pagos</h3>
+      <div class="py-2 mx-4 flex justify-between overflow-scroll">
+        <h3 class="text-md font-bold mr-2">Todos los consumos</h3>
         <div class="flex gap-4 items-center">
           <div id="conciliate">
             <button @click="conciliateUIConsumpoints" class="option conciliate flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
