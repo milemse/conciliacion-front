@@ -239,7 +239,7 @@ async function selectFile(){
 }
 
 async function exportFile(){
-  await Command.create('pm2', ['start', '/Users/fmontoya/Gasu/Download/src/main.js']).execute()
+  await Command.create('pm2', ['start', '/Users/fmontoya/Gasu/Descarga/src/main.js']).execute()
 
   await downloadPayments(payments.value, DB)
   await writeTextFile(PATH_FROM_EXPORT, JSON.stringify({ path: `${selectedFilePath.value}`, period_id: period_id.value })) // TODO

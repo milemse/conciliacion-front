@@ -283,34 +283,36 @@ function getNext(){
           <p class="text-sm font-light">{{ notification.description }}</p>
         </div>
     </div>
-    <h1 class="mt-4 ml-6 text-md font-semibold">Carga de pagos</h1>
-    <div class="flex mt-4">
-        <div class="relative mx-4 w-3/5">
-            <select id="fileType" @change="selectOption" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
-                <option selected>Selecione una opción</option> 
-                <option value="fz">Pagos del área de Finanzas</option>
-                <option value="rd">Consumos del área de Residenciales</option>
-                <option value="tk">Lectura de tanques</option>
-            </select>
-            <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
-            </svg>              
+
+    <div>
+        <h1 class="mt-4 ml-6 text-md font-semibold">Carga de pagos</h1>
+        <div class="flex mt-4">
+            <div class="relative mx-4 w-3/5">
+                <select id="fileType" @change="selectOption" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+                    <option selected>Selecione una opción</option> 
+                    <option value="fz">Pagos del área de Finanzas</option>
+                    <option value="rd">Consumos del área de Residenciales</option>
+                    <option value="tk">Lectura de tanques</option>
+                </select>
+                <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+                </svg>              
+            </div>
+            <div class="relative mr-2 w-2/5">
+                <select @change="getParamId" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
+                    <option selected>{{ optionsToShow.name }}</option> 
+                    <option :value="`${option.value}`" v-for="option in optionsToShow.options">
+                        {{ option.name }}
+                    </option>
+                </select>
+                <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
+                </svg>              
+            </div>
+            <input id="path" disabled type="text" :value="selectedFilePath" class="border text-slate-400 rounded-lg block w-1/3 p-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Seleccionar archivo">
+            <button @click="start" class="w-[100px] ml-6 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 px-2">Seleccionar</button>
+            <button @click="upload" class="w-[100px] ml-2 mr-6 text-white bg-green-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 px-2">Subir</button>
         </div>
-        <div class="relative mr-2 w-2/5">
-            <select @change="getParamId" class="w-full bg-transparent placeholder:text-gray-400 focus:ring-gray-600 text-slate-900 focus:ring-2 focus:ring-gray-600 border border-slate-900 rounded-lg pl-3 pr-8 py-2 transition duration-300 ease focus:outline-none hover:border-slate-900 shadow-sm focus:shadow-md appearance-none cursor-pointer">
-                <option selected>{{ optionsToShow.name }}</option> 
-                <option :value="`${option.value}`" v-for="option in optionsToShow.options">
-                    {{ option.name }}
-                </option>
-            </select>
-            <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
-            </svg>              
-        </div>
-        <input id="path" disabled type="text" :value="selectedFilePath" class="border text-slate-400 rounded-lg block w-1/3 p-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Seleccionar archivo">
-        <button @click="start" class="w-[100px] ml-6 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 px-2">Seleccionar</button>
-        <button @click="upload" class="w-[100px] ml-2 mr-6 text-white bg-green-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 px-2">Subir</button>
-    </div>
 
     <div class="max-w-full border mt-4 mx-4" v-if="toShowType === 'fz'">  
         <div class="py-2 mx-4">
@@ -415,4 +417,6 @@ function getNext(){
             </div>
         </div>          
     </div>
+    </div>
+    
 </template>

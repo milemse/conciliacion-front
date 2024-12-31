@@ -22,7 +22,7 @@
           "cmd": "pm2",
           "args": [
             "start",
-            "/Users/fmontoya/Gasu/Download/src/main.js"
+            "/Users/fmontoya/Gasu/Descarga/src/main.js"
           ]
         }
       ]

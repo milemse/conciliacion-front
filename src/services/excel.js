@@ -223,7 +223,7 @@ export async function uploadPayments(db, payments, upload){
 export async function uploadConsumptions(db, consumptions, upload, in_period_id){
     for(let consumption of consumptions){
         // Obtener id del cliente
-        const selectClientId = `select cl.client_id from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
+        const selectClientId = `select cl.client_id from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva ilike '%' || $1 || '%'`
         const resultClient = await db.select(selectClientId, [new String(consumption.reference)])
 
         if(resultClient.length > 0){
