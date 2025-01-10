@@ -1,12 +1,13 @@
 <script setup>
-import { ref, onBeforeMount } from 'vue'
+import { ref, onBeforeMount, onUnmounted } from 'vue'
 
 import { open } from '@tauri-apps/plugin-dialog'
 import Database from '@tauri-apps/plugin-sql'
 import { invoke } from '@tauri-apps/api/core'
 
 import { read } from 'xlsx'
-import { readFile } from '@tauri-apps/plugin-fs'
+import { readFile, readTextFile } from '@tauri-apps/plugin-fs'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 
 import { downloadConsumptions } from '../services/excel'
 import { linker_consumptions } from '../utils/linker_consumptions'
@@ -161,6 +162,11 @@ onBeforeMount(async function(){
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
+  const textParams = await readTextFile('params.json')
+  const toLoad = JSON.parse(textParams)
+  queryParams = toLoad.queryParams
+  filterValues = toLoad.filterValues
+
   period.value = await getLastPeriod()
 
   const tempPeriods = await getAllPeriods()
@@ -181,6 +187,18 @@ onBeforeMount(async function(){
   }
 
   consumptions.value = tempConsumptions
+
+  await filter()
+})
+
+onUnmounted(async () => {
+  const toSave = {
+    queryParams,
+    filterValues,
+  }
+
+  await writeTextFile('params.json', JSON.stringify(toSave))
+  await DB.close()
 })
 
 function isClose(a, b, relTol = 1e-9, absTol = 0) {
@@ -608,6 +626,9 @@ async function removeFilter(id){
 async function removeFilters(){
   filters.value = []
   period.value = await getLastPeriod()
+
+  queryParams = []
+  filterValues = []
 
   queryConsumptionsCount = structuredQueries.general.count
   queryConsumptions = structuredQueries.general.query
