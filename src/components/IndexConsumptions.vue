@@ -70,6 +70,12 @@ const menuUI = {
     classes: 'title text-md font-light ml-2',
     ui: ''
   },
+  period: {
+    id: 'period',
+    description: 'Periodos',
+    classes: 'title text-md font-light ml-2',
+    ui: ''
+  },
   payments: {
     id: 'payments',
     description: 'Pagos',
@@ -182,6 +188,34 @@ function isClose(a, b, relTol = 1e-9, absTol = 0) {
     return diff <= Math.max(relTol * Math.abs(a), absTol)
 }
 
+async function addPeriod(){
+  const name = document.getElementById('namePeriod').value
+  const initial = document.getElementById('initialPeriod').value
+  const final = document.getElementById('finalPeriod').value
+
+  if(name === '' || initial === '' || final === ''){
+    notification.value.title = 'Se deben rellenar todos los campos'
+    notification.value.description = 'No se han rellenado todos los campos necesarios para agregar el periodo.'
+    document.getElementById('notification').style.display = 'block'
+    return
+  }
+
+  const daysDifference = Math.floor((new Date(final).getTime() - new Date(initial).getTime()) / (1000 * 60 * 60 * 24))
+  const insertPeriod = `insert into main.period(name, initial, final, days, type) values('${name}', '${initial}', '${final}', ${daysDifference}, 'CONS')`
+  await DB.execute(insertPeriod)
+
+  notification.value.title = 'Periodo agregado'
+  notification.value.description = `El periodo ${name} ha sido agregado correctamente.`
+  document.getElementById('notification').style.display = 'block'
+  cleanPeriod()
+}
+
+function cleanPeriod(){
+  document.getElementById('namePeriod').value = ''
+  document.getElementById('initialPeriod').value = ''
+  document.getElementById('finalPeriod').value = ''
+}
+
 function hideUI(name){
   periodPayments.value = false
   const optionHTML = document.getElementsByClassName('option')
@@ -213,6 +247,11 @@ function conciliateUIConsumpoints(){
 function filterUIConsumptions(){
     hideUI('filter')
     typeUI.value = 'filter-consumptions'
+}
+
+function periodUIConsumptions(){
+    hideUI('period')
+    typeUI.value = 'period-consumptions'
 }
 
 async function exportFileUIConsumptions(){
@@ -851,19 +890,27 @@ async function getNextConsumptions(){
               <span id="title-filter" class="title text-md font-light ml-2">Filtrar</span>          
             </button>
           </div>
+          <div id="period">
+            <button @click="periodUIConsumptions" class="option period flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
+              <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+              </svg>              
+              <span id="title-period" class="title text-md font-light ml-2">Periodos</span>          
+            </button>
+          </div>
           <div id="payments">
             <button @click="paymentUIConsumptions" class="option payments flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
               <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 18h14M5 18v3h14v-3M5 18l1-9h12l1 9M16 6v3m-4-3v3m-2-6h8v3h-8V3Zm-1 9h.01v.01H9V12Zm3 0h.01v.01H12V12Zm3 0h.01v.01H15V12Zm-6 3h.01v.01H9V15Zm3 0h.01v.01H12V15Zm3 0h.01v.01H15V15Z"/>
-              </svg> 
+                <path stroke="currentColor" stroke-linecap="round" stroke-width="1" d="M8 7V6a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1M3 18v-7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Zm8-3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
+              </svg>              
               <span id="title-payments" class="title text-md font-light ml-2">Pagos</span>
             </button>
           </div>
           <div id="cashUI">
             <button @click="cashUI" class="option cash flex border rounded-lg py-1 px-3 hover:bg-slate-100 hover:text-gray-700">
               <svg class="w-6 h-6 text-gray-800" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" stroke-linecap="round" stroke-width="1" d="M8 7V6a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1M3 18v-7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Zm8-3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
-              </svg>                                      
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 6.03v13m0-13c-2.819-.831-4.715-1.076-8.029-1.023A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023"/>
+              </svg>                                                   
               <span id="title-cash" class="title text-md font-light ml-2">Efectivo</span>  
             </button>
           </div>
@@ -1051,6 +1098,22 @@ async function getNextConsumptions(){
           <div class="flex gap-2">
             <button @click="selectFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Seleccionar</button>
             <button @click="exportFile" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Exportar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="exp" v-else-if="typeUI === 'period-consumptions'">
+        <h3 class="ml-2 mt-2 font-bold">Periodos</h3>
+
+        <hr class="mt-2">
+
+        <div class="w-[calc(94%)] mt-2 ml-2 mb-2">
+          <input id="namePeriod" type="text" class="border mt-2 rounded-md text-sm text-slate-800 w-full p-1 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce el nombre del periodo">
+          <input id="initialPeriod" type="text" class="border mt-2 rounded-md text-sm text-slate-800 w-full p-1 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce la fecha inicial (aaaa-mm-dd)">
+          <input id="finalPeriod" type="text" class="border mt-2 rounded-md text-sm text-slate-800 w-full p-1 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce la fecha final (aaaa-mm-dd)">
+          <div class="flex gap-2">
+            <button @click="addPeriod" class="w-full mt-2 text-white bg-[#075985] bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Agregar</button>
+            <button @click="cleanPeriod" class="w-full mt-2 text-white bg-yellow-700 bg-opacity-90 hover:bg-opacity-100 focus:ring-4 focus:outline-none font-semibold rounded-md text-sm text-center focus:ring-gray-600 p-2">Limpiar</button>
           </div>
         </div>
       </div>
