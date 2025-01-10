@@ -162,7 +162,7 @@ onBeforeMount(async function(){
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
-  const textParams = await readTextFile('params.json')
+  const textParams = await readTextFile('/Users/fmontoya/Data/state/params.json')
   const toLoad = JSON.parse(textParams)
   queryParams = toLoad.queryParams
   filterValues = toLoad.filterValues
@@ -197,7 +197,7 @@ onUnmounted(async () => {
     filterValues,
   }
 
-  await writeTextFile('params.json', JSON.stringify(toSave))
+  await writeTextFile('/Users/fmontoya/Data/state/params.json', JSON.stringify(toSave))
   await DB.close()
 })
 
