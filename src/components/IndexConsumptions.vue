@@ -793,7 +793,7 @@ async function getCondominiumsPerBlock(block){
 }
 
 async function getAllPeriods(){
-  const selectPeriods = `select pr.period_id as id, pr.name as name from main.period pr`
+  const selectPeriods = `select pr.period_id as id, pr.name as name from main.period pr where type = 'CONS'`
   const tempPeriods = await DB.select(selectPeriods)
 
   return tempPeriods
