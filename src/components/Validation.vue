@@ -41,8 +41,10 @@ async function getGeneralValidations(){
   const selectValidationsCount = `select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false`
   const tempValidationsCount = await DB.select(selectValidationsCount)
   validations_count.value = tempValidationsCount.shift().validations_count
-  const selectValidations = `select py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identificacion, acc.reference_bbva as reference, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value}`
+  const selectValidations = `select cl.client_id, py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identificacion, acc.reference_bbva as reference, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value}`
   const tempValidations = await DB.select(selectValidations)
+
+  const selectLastTotal = `select cn.total from main.client cl join main.reading rd on cl.client_id = rd.client_id join main.consumption cn on rd.reading_id = cn.reading_id where cl.client_id = $1 order by cn.consumption_id desc limit 1`
 
   for(let item of tempValidations){
     if(item.type_identificacion === 'rf')
@@ -51,6 +53,10 @@ async function getGeneralValidations(){
       item.identification = type_identification.amount
     else if(item.type_identificacion === 'ch')
       item.identification = type_identification.cash
+
+    const client_id = item.client_id
+    const resultLastTotal = await DB.select(selectLastTotal, [client_id])
+    item.total = resultLastTotal.shift().total
   }
 
   validations.value = tempValidations
@@ -122,6 +128,7 @@ async function getNextValidations(){
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Fecha</th>
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Descripción</th>
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Cantidad</th>
+                <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Consumo total</th>
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Emparejamiento por</th>
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Clave referenciada</th>
                 <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Cliente</th>
@@ -134,6 +141,7 @@ async function getNextValidations(){
                 <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ validation.done_at }}</td>
                 <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ validation.description }}</td>
                 <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">$ {{ validation.amount.toLocaleString() }}</td>
+                <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">$ {{ validation.total.toLocaleString() }}</td>
                 <td class="p-2 whitespace-nowrap">
                   <span :class="validation.identification.classes">{{ validation.identification.name }}</span>
                 </td>
