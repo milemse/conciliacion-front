@@ -415,9 +415,11 @@ async function deleteFilter(){
   await getAllPayments(period_id.value)
 }
 
-function filterUI(){
+async function filterUI(){
   hideUI('filter')
   typeUI.value = 'filter'
+  const tempPeriods = await DB.select(`select period_id, name from main.period where type = 'PAYS'`)
+  periods.value = tempPeriods
 }
 
 function consumptionUI(){
@@ -1107,7 +1109,7 @@ async function getPreviousPayments(){
 
   <!-- BANCOS -->
   <div id="banks" class="flex mr-6 min-w-[800px] min-h-[600px]">
-    <div class="sm:max-w-[80vw] sm:w-[80vw] border max-h-screen mt-4 mx-4 shadow-md">
+    <div class="sm:max-w-[75vw] sm:w-[80vw] border max-h-screen mt-4 mx-4 shadow-md">
       <div class="py-2 mx-4 flex justify-between overflow-scroll">
         <h3 class="text-md font-bold">Todos los pagos</h3>
         <div class="flex gap-4 items-center">
@@ -1246,7 +1248,7 @@ async function getPreviousPayments(){
       </div>
     </div>
   
-    <div class="w-[50vw] h-[87vh] relative right-0 shadow-md border mt-4">
+    <div class="w-full h-[87vh] relative right-0 shadow-md border mt-4">
       <div id="conci" v-if="typeUI === 'conciliate'">
         <h3 class="ml-2 mt-2 font-bold">Conciliación</h3>
         <div class="relative w-[calc(100%-1rem)] ml-2 mt-2">

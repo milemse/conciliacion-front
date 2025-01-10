@@ -75,8 +75,8 @@ onBeforeMount(async function () {
 })
 
 async function selectOption(){
-    const selectPeriodsBanks = `select period_id, name from main.period where type = 'PAYS'`
-    const selectPeriodsBlocks = `select period_id, name from main.period where type = 'CONS'`
+    const selectPeriodsBanks = `select period_id as value, name from main.period where type = 'PAYS'`
+    const selectPeriodsBlocks = `select period_id as value, name from main.period where type = 'CONS'`
 
     const fileTypeInput = document.getElementById('fileType')
     const selectedIndex = fileTypeInput.selectedIndex
@@ -192,9 +192,15 @@ async function upload() {
             paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
         break
         case 'rd':
-            await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload, param_id.value)
+            const result = await uploadConsumptions(DB, totalOfConsumptions, type_upload.upload, param_id.value)
             consumptionsToShow.value = []
             consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
+
+            if(result === -1){
+                notification.value.title = 'Consumos existentes'
+                notification.value.description = 'Ya se han subido las lecturas de estos consumos en el periodo seleccionado.'
+                document.getElementById('notification').style.display = 'block'
+            }
         break
         case 'tk':
             await uploadTanks(DB, totalOfTanks, type_upload.upload)

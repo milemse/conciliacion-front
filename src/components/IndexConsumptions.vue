@@ -13,24 +13,24 @@ import { linker_consumptions } from '../utils/linker_consumptions'
 
 const structuredQueries = {
   general: {
-    query: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 order by department asc`,
-    queryClientInformation: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 order by department asc`,
+    queryClientInformation: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
     count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1`
   },
   block: {
-    query: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 order by department asc`,
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 order by department asc`,
     count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1`
   },
   blockAndCondominium: {
-    query: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2 order by department asc`,
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2 order by department asc`,
     count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2`
   },
   blockAndPeriod: {
-    query: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 order by department asc`,
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 order by department asc`,
     count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2`
   },
   blockAndCondominiumAndPeriod: {
-    query: `select cl.client_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3 order by department asc`,
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3 order by department asc`,
     count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3` 
   },
   payments: {
@@ -44,6 +44,10 @@ const structuredQueries = {
   total: {
     query: `select cl.client_id, sum(py.amount) as total from main.client cl join main.account acc on acc.client_id = cl.client_id join main.payment py on py.account_id = acc.account_id where cl.client_id = $1 group by cl.client_id`,
     queryPeriod: `select cl.client_id, sum(py.amount) as total from main.client cl join main.account acc on acc.client_id = cl.client_id join main.payment py on py.account_id = acc.account_id where cl.client_id = $1 and py.done_at >= (select initial from main.period where period_id = $2) and py.done_at <= (select final from main.period where period_id = $3) group by cl.client_id`
+  },
+  delete: {
+    consumption: `delete from main.consumption where consumption_id = $1`,
+    reading: `delete from main.reading where reading_id = $1`
   }
 }
 
@@ -247,6 +251,32 @@ function selectFilter(value){
           typeFilter.value = ''
           break
     }
+}
+
+async function deleteConsumptions(){
+  let tempConsumptions = consumptions.value
+  const toDeleteConsumptions = tempConsumptions.filter(item => item.checked)
+
+  if(toDeleteConsumptions.length === 0){
+    notification.value.title = 'No se han seleccionado consumos'
+    notification.value.description = 'No se han seleccionado consumos para eliminar.'
+    document.getElementById('notification').style.display = 'block'
+    return
+  }
+
+  for(let item of toDeleteConsumptions){
+    const deleteConsumption = `delete from main.consumption where consumption_id = $1`
+    await DB.execute(deleteConsumption, [item.consumption_id])
+
+    const deleteReading = `delete from main.reading where reading_id = $1`
+    await DB.execute(deleteReading, [item.reading_id])
+  }
+
+  await getGeneralConsumptions()
+
+  notification.value.title = 'Eliminación exitosa'
+  notification.value.description = 'Se han eliminado los consumos seleccionados.'
+  document.getElementById('notification').style.display = 'block'
 }
 
 async function getLastPeriod(){
@@ -913,7 +943,14 @@ async function getNextConsumptions(){
     <div class="w-[20vw] h-[87vh] relative right-0 shadow-md border mt-4">
       <div id="conci" v-if="typeUI === 'conciliate-consumptions'">
         <div class="relative w-[calc(100%-1rem)] ml-2">
-          <h3 class="ml-1 mt-2 border-b border-gray-600 pb-2 font-bold">Conciliación</h3>
+          <div class="ml-1 mt-2 border-b border-gray-600 pb-2 flex justify-between items-center">
+            <h3 class="font-bold">Conciliación</h3>
+            <button class="w-6 h-6 mt-1 mr-2" @click="deleteConsumptions">
+              <svg class="w-6 h-6 text-gray-600 hover:cursor-pointer hover:text-red-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"/>
+              </svg>                       
+            </button>
+          </div>
           <input id="tolerance" type="text" @keyup="checkTolerance" class="border mt-2 text-xs rounded-md block w-full px-2 py-2 border-gray-600 focus:ring-2 focus:ring-gray-600 focus:outline-none focus:ring-offset-0" placeholder="Introduce referencia ó la cifra de tolerancia (% ó $)">
         </div>
         <div class="p-2 overflow-y-auto">

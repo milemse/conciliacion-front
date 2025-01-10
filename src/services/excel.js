@@ -221,6 +221,9 @@ export async function uploadPayments(db, payments, upload){
 }
 
 export async function uploadConsumptions(db, consumptions, upload, in_period_id){
+    const selectPreviousConsumptions = `select count(reading_id) as readings from main.client cl join main.reading rd on cl.client_id = rd.client_id where cl.client_id = $1 and rd.period_id = $2`
+    let consumptions_uploaded = 0
+
     for(let consumption of consumptions){
         // Obtener id del cliente
         const selectClientId = `select cl.client_id from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva ilike '%' || $1 || '%'`
@@ -228,6 +231,13 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
 
         if(resultClient.length > 0){
             const client_id = resultClient.shift().client_id
+
+            // Obtenemos si ya existe una lectura para este cliente en el periodo
+            const resultPreviousConsumtion = await db.select(selectPreviousConsumptions, [client_id, in_period_id])
+            if(resultPreviousConsumtion.shift().readings > 0){
+                consumptions_uploaded++
+                continue
+            }
 
             // Actualizamos propietario
             const updateOwner = `update main.client set owner = $1 where client_id = $2`
@@ -257,6 +267,11 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
             consumption.upload = upload
         }
     }
+
+    if(consumptions_uploaded !== 0)
+        return -1
+    else
+        return 0
 }
 
 export async function uploadTanks(db, tanks, upload){
