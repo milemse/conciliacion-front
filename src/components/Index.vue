@@ -114,22 +114,22 @@ const structuredQueries = {
     countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is null and validated = false`
   },
   downloaded: {
-    query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is not null and downloaded = true order by p.payment_id`,
-    count: `select count(*) as payments_count from main.payment p where p.account_id is not null and p.downloaded = true`,
-    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true order by p.payment_id`,
-    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null and downloaded = true`
+    query: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where p.account_id is not null order by p.payment_id`,
+    count: `select count(*) as payments_count from main.payment p where p.account_id is not null`,
+    period: `select p.payment_id, p.account_id, p.description, p.done_at, p.amount, p.reference from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null order by p.payment_id`,
+    countPeriod: `select count(*) as payments_count from main.payment p where done_at >= (select initial from main.period where period_id = $1) and done_at <= (select final from main.period where period_id = $2) and p.account_id is not null`
   },
   client: {
     queryClient: `select cl.client_id, cl.client, acc.reference_bbva as reference, acc.account_id from  main.client cl join main.account acc on acc.client_id = cl.client_id where cl.client_id = $1`,
-    queryClientInformation: `select cl.client_id, cl.identifier, cl.client, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
+    queryClientInformation: `select cl.client_id, cl.identifier, cl.client, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
     queryClientInformationPeriod: ``,
-    queryIsSupplier: `select cl.client_id from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id where cd.block = 0 and cl.client_id = $1`
+    queryIsSupplier: `select cl.client_id from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id where cd.block = 0 and cl.client_id = $1`
   },
   payments: {
     queryNotAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at from main.payment py where py.account_id is null`
   },
   period: {
-    query: `select period_id, name from main.period`
+    query: `select period_id, name from main.period where type = 'PAYS'`
   },
   makeByReference: {
     query: `select acc.reference_bbva as reference from main.account acc where $1 ilike '%' || acc.reference_bbva || '%' or $2 ilike '%' || substring(acc.reference_bbva, 4, 11) || '%'`
@@ -203,7 +203,7 @@ onBeforeMount(async function(){
       const resultAccount = await DB.select(selectAccountId, [tempPayments[idx].account_id])
       const reference = resultAccount.shift().reference_bbva
 
-      const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+      const selectClientByReference = `select cl.client as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
       const resultClient = await DB.select(selectClientByReference, [reference])
       const deparment = resultClient.shift().department
 
@@ -536,7 +536,7 @@ async function getAllPayments(period){
       const reference = resultAccount.shift().reference_bbva
       tempPayments[idx].toshow_reference = tempPayments[idx].reference.split('-').shift()
 
-      const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+      const selectClientByReference = `select cl.client as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
       const resultClient = await DB.select(selectClientByReference, [reference])
 
       tempPayments[idx].client = resultClient.shift().department
@@ -590,7 +590,7 @@ async function getAllDownloadedPayments(period){
     const resultAccount = await DB.select(selectAccountId, [tempPayments[idx].account_id])
     const reference = resultAccount.shift().reference_bbva
 
-    const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as deparment from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+    const selectClientByReference = `select cl.client as deparment from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
     const resultClient = await DB.select(selectClientByReference, [reference])
 
     tempPayments[idx].client = resultClient.shift().department
@@ -639,7 +639,7 @@ async function getAllValidatedPayments(period){
     const resultAccount = await DB.select(selectAccountId, [tempPayments[idx].account_id])
     const reference = resultAccount.shift().reference_bbva
 
-    const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as deparment from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+    const selectClientByReference = `select cl.client as deparment from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
     const resultClient = await DB.select(selectClientByReference, [reference])
 
     tempPayments[idx].client = resultClient.shift().department
@@ -712,7 +712,7 @@ async function validate(){
 
     const payment_id = item.payment_id
 
-    const updatePayment = `update main.payment set account_id = $1, validated = true, type_identificacion = $2 where payment_id = $3`
+    const updatePayment = `update main.payment set account_id = $1, validated = true, type_identification = $2 where payment_id = $3`
     const result = await DB.execute(updatePayment, [parseInt(account_id), item.identification.code, payment_id])
   }
 
@@ -748,7 +748,7 @@ async function showDetails(payment_id){
   const tempPayment = await DB.select(selectPaymentInformation, [payment_id])
   payment.value = tempPayment.shift()
 
-  const selectClientInformation = `select cl.client_id, acc.account_id, py.payment_id, cl.client from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id join main.account acc on cl.client_id = acc.client_id join main.payment py on acc.account_id = py.account_id where py.payment_id = $1`
+  const selectClientInformation = `select cl.client_id, acc.account_id, py.payment_id, cl.client from main.client cl join main.account acc on cl.client_id = acc.client_id join main.payment py on acc.account_id = py.account_id where py.payment_id = $1`
   let tempClient = await DB.select(selectClientInformation, [payment_id])
   
   if(tempClient.length > 0){
@@ -855,7 +855,7 @@ async function checkClient(event){
     const [type, block, condominium] = params
 
     if(type.toLowerCase() === 'c'){
-      const selectClient = `select cl.client_id, cl.client, acc.account_id, acc.reference_bbva as reference from main.condominium cd join main.client cl on cd.condominium_id = cl.condominium_id join main.account acc on acc.client_id = cl.client_id where cd.block = ${block} and cl.client ilike '%${condominium}%'`
+      const selectClient = `select cl.client_id, cl.client, acc.account_id, acc.reference_bbva as reference from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id where cd.block = ${block} and cl.client ilike '%${condominium}%'`
       const tempClients = await DB.select(selectClient)
       supplies.value = tempClients
     }
@@ -869,14 +869,14 @@ async function assignPayment(client, account_id){
   if(payment_id === undefined)
     return
 
-  const updatePaymentSelected = `update main.payment set account_id = $1, type_identificacion = 'am' where payment_id = $2`
+  const updatePaymentSelected = `update main.payment set account_id = $1, type_identification = 'am' where payment_id = $2`
   await DB.execute(updatePaymentSelected, [account_id, payment_id])
   payment.value.client = client
   await getAllPayments()
 }
 
 async function assignToClient(payment_id){
-  const updatePayment = `update main.payment set account_id = $1, validated = true, type_identificacion = 'am' where payment_id = $2`
+  const updatePayment = `update main.payment set account_id = $1, validated = true, type_identification = 'am' where payment_id = $2`
   const account_id = client.value.account_id
   
   await DB.execute(updatePayment, [account_id, payment_id])
@@ -899,7 +899,7 @@ async function addPayment(){
     return
   }
 
-  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, downloaded, type_identificacion, reference) values ($1, $2, $3, '${date}', true, null, null, 'ch', '00000000-9:9')`
+  const insertPayment = `insert into main.payment (account_id, description, amount, done_at, validated, to_download, type_identification, reference) values ($1, $2, $3, '${date}', true, null, 'ch', '00000000-9:9')`
   await DB.execute(insertPayment, [client.value.account_id, description, parseFloat(amount)])
 
   document.getElementById('paymentDescription').value = ''
@@ -922,7 +922,7 @@ async function deletePayment(payment_id){
 }
 
 async function unassign(payment_id){
-  const unassignPayment = `update main.payment set account_id = null, validated = false, type_identificacion = null, to_download = false, downloaded = false where payment_id = $1`
+  const unassignPayment = `update main.payment set account_id = null, validated = false, type_identification = null, to_download = false where payment_id = $1`
   await DB.execute(unassignPayment, [payment_id])
 
   await paymentsClientUI()
@@ -950,7 +950,7 @@ async function showPerPage(value){
       const reference = resultAccount.shift().reference_bbva
       tempPayments[idx].toshow_reference = tempPayments[idx].reference.split('-').shift()
 
-      const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+      const selectClientByReference = `select cl.client as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
       const resultClient = await DB.select(selectClientByReference, [reference])
 
       tempPayments[idx].checked = false
@@ -977,7 +977,7 @@ async function showPerPage(value){
 
 async function makeMatchClient(newMatch){
   const matchClients = []
-  const selectClient = `select distinct(cl.client_id) as client_id, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client cl join main.condominium cd on cl.condominium_id = cd.condominium_id join main.account acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
+  const selectClient = `select distinct(cl.client_id) as client_id, cl.client as department from main.client cl join main.account acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
 
   for(let match of newMatch){ 
     const resultClient = await DB.select(selectClient, [match.reference])
@@ -1013,7 +1013,7 @@ async function getNextPayments(){
       const reference = resultAccount.shift().reference_bbva
       temp[idx].toshow_reference = temp[idx].reference.split('-').shift()
 
-      const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+      const selectClientByReference = `select cl.client as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
       const resultClient = await DB.select(selectClientByReference, [reference])
 
       temp[idx].checked = false
@@ -1064,7 +1064,7 @@ async function getPreviousPayments(){
       const reference = resultAccount.shift().reference_bbva
       temp[idx].toshow_reference = temp[idx].reference.split('-').shift()
 
-      const selectClientByReference = `select (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id join main.condominium cd on cd.condominium_id = cl.condominium_id where acc.reference_bbva = $1`
+      const selectClientByReference = `select cl.client as department from main.client as cl join main.account as acc on cl.client_id = acc.client_id where acc.reference_bbva = $1`
       const resultClient = await DB.select(selectClientByReference, [reference])
 
       temp[idx].checked = false

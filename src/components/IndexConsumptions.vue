@@ -14,32 +14,32 @@ import { linker_consumptions } from '../utils/linker_consumptions'
 
 const structuredQueries = {
   general: {
-    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 order by department asc`,
-    queryClientInformation: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
-    count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1`
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 order by department asc`,
+    queryClientInformation: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total, cn.debt, cn.liters, acc.account_id from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1 and cl.client_id = $2`,
+    count: `select count(*) as consumptions_count from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id where rd.period_id = $1`
   },
   block: {
-    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 order by department asc`,
-    count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1`
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 order by department asc`,
+    count: `select count(*) as consumptions_count from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1`
   },
   blockAndCondominium: {
-    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2 order by department asc`,
-    count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2`
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2 order by department asc`,
+    count: `select count(*) as consumptions_count from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and cd.condominium_id = $2`
   },
   blockAndPeriod: {
-    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 order by department asc`,
-    count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2`
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 order by department asc`,
+    count: `select count(*) as consumptions_count from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2`
   },
   blockAndCondominiumAndPeriod: {
-    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3 order by department asc`,
-    count: `select count(*) as consumptions_count from main.condominium cd join main.client cl on cl.condominium_id = cd.condominium_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3` 
+    query: `select cl.client_id, cn.consumption_id, rd.reading_id, cl.identifier, cl.client as department, acc.reference_bbva as reference, cn.total from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3 order by department asc`,
+    count: `select count(*) as consumptions_count from main.condominium cd join main.building bd on cd.condominium_id = bd.condominium_id join main.client cl on cl.building_id = bd.building_id join main.account acc on acc.client_id = cl.client_id join main.reading rd on rd.client_id = cl.client_id join main.consumption cn on cn.reading_id = rd.reading_id join main.period pr on pr.period_id = rd.period_id where cd.block = $1 and pr.period_id = $2 and cd.condominium_id = $3` 
   },
   payments: {
-    queryAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.reference_bbva = $1`,
+    queryAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identification, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.reference_bbva = $1`,
     queryNotAssigned: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at from main.payment py where py.account_id is null`,
-    queryByClient: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1`,
-    queryByClientPeriod: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identificacion, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1 and py.done_at >= (select initial from main.period where period_id = $2) and py.done_at <= (select final from main.period where period_id = $3)`,
-    queryAssignPayment: `update main.payment set account_id = $1, type_identificacion = 'am' where payment_id = $2`,
+    queryByClient: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identification, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1`,
+    queryByClientPeriod: `select py.reference, py.payment_id, py.account_id, py.amount, py.description, py.done_at, py.type_identification, acc.reference_bbva from main.payment py join main.account acc on acc.account_id = py.account_id where py.account_id is not null and acc.client_id = $1 and py.done_at >= (select initial from main.period where period_id = $2) and py.done_at <= (select final from main.period where period_id = $3)`,
+    queryAssignPayment: `update main.payment set account_id = $1, type_identification = 'am' where payment_id = $2`,
     queryDeletePayment: `update main.payment set account_id = null where payment_id = $1`
   },
   total: {
@@ -162,14 +162,14 @@ onBeforeMount(async function(){
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   DB = await Database.load(PROVEE_TEST)
 
-  const textParams = await readTextFile('/Users/fmontoya/Data/state/params.json')
-  const toLoad = JSON.parse(textParams)
-  queryParams = toLoad.queryParams
-  filterValues = toLoad.filterValues
+  //const textParams = await readTextFile('/Users/fmontoya/Data/state/params.json')
+  //const toLoad = JSON.parse(textParams)
+  //queryParams = toLoad.queryParams
+  //filterValues = toLoad.filterValues
 
-  period.value = await getLastPeriod()
 
   const tempPeriods = await getAllPeriods()
+  period.value = await getLastPeriod()
   filterPills.value['period'].options = tempPeriods
 
   const temp_consumptions_count = await DB.select(queryConsumptionsCount, [period.value.period_id])
@@ -177,8 +177,10 @@ onBeforeMount(async function(){
   const selectConsumptions = `${queryConsumptions} limit ${salt_consumptions.value}`
   const tempConsumptions = await DB.select(selectConsumptions, [period.value.period_id])
 
+
   for (let item of tempConsumptions){
     item.checked = false
+    console.log(item.client_id)
     const total = await DB.select(structuredQueries.total.queryPeriod, [item.client_id, period.value.period_id, period.value.period_id])
     if(total.length > 0)
       item.total_payment = total.shift().total.toFixed(2)
@@ -188,7 +190,7 @@ onBeforeMount(async function(){
 
   consumptions.value = tempConsumptions
 
-  await filter()
+  //await filter()
 })
 
 onUnmounted(async () => {
@@ -337,7 +339,7 @@ async function deleteConsumptions(){
 }
 
 async function getLastPeriod(){
-  const selectLastPeriod = 'select period_id, name from main.period order by period_id desc limit 1'
+  const selectLastPeriod = `select period_id, name from main.period where type = 'CONS' order by period_id desc limit 1`
   const resultPeriod = await DB.select(selectLastPeriod)
   const tempPeriod = resultPeriod.shift()
 
@@ -345,7 +347,7 @@ async function getLastPeriod(){
 }
 
 async function getPeriodById(period_id){
-  const selectPeriodById = `select period_id, name from main.period where period_id = ${period_id}`
+  const selectPeriodById = `select period_id, name from main.period where period_id = ${period_id} and type = 'CONS'`
   const resultPeriod = await DB.select(selectPeriodById)
   const tempPeriod = resultPeriod.shift()
 
@@ -786,7 +788,7 @@ async function showDetails(client_id){
 }
 
 async function getCondominiumsPerBlock(block){
-  const selectCondominium = `select cd.condominium_id as id, (cd.name || ' ' || cd.building) as name from main.condominium cd where cd.block = ${block}`
+  const selectCondominium = `select cd.condominium_id as id, cd.name from main.condominium cd where cd.block = ${block}`
   const tempCondominium = await DB.select(selectCondominium)
 
   return tempCondominium

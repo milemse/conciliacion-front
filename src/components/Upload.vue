@@ -423,6 +423,5 @@ function getNext(){
             </div>
         </div>          
     </div>
-    </div>
-    
+    </div>    
 </template>

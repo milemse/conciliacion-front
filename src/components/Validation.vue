@@ -38,10 +38,10 @@ onBeforeMount(async function () {
 })
 
 async function getGeneralValidations(){
-  const selectValidationsCount = `select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false`
+  const selectValidationsCount = `select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false`
   const tempValidationsCount = await DB.select(selectValidationsCount)
   validations_count.value = tempValidationsCount.shift().validations_count
-  const selectValidations = `select cl.client_id, py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identificacion, acc.reference_bbva as reference, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value}`
+  const selectValidations = `select cl.client_id, py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identification, acc.reference_bbva as reference, cl.client as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value}`
   const tempValidations = await DB.select(selectValidations)
 
   const selectLastTotal = `select cn.total from main.client cl join main.reading rd on cl.client_id = rd.client_id join main.consumption cn on rd.reading_id = cn.reading_id where cl.client_id = $1 order by cn.consumption_id desc limit 1`
@@ -80,9 +80,9 @@ function showPerPageValidations(){
 
 async function getPreviousValidations(){
   const offset = (current_validations.value - salt_validations.value) > -1 ? current_validations.value - salt_validations.value : 0
-  const temp_validations_count = await DB.select(`select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false`)
+  const temp_validations_count = await DB.select(`select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false`)
   validations_count.value = temp_validations_count.shift().validations_count
-  const selectValidations = `select py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identificacion, acc.reference_bbva as reference, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value} offset ${offset}`
+  const selectValidations = `select py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identification, acc.reference_bbva as reference, cl.client as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value} offset ${offset}`
   const tempValidations = await DB.select(selectValidations)
   
   for(let item of tempValidations){
@@ -98,9 +98,9 @@ async function getPreviousValidations(){
 
 async function getNextValidations(){
   const offset = (current_validations.value + salt_validations.value) < validations_count.value ? current_validations.value + salt_validations.value : validations_count.value
-  const temp_validations_count = await DB.select(`select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false`)
+  const temp_validations_count = await DB.select(`select count(*) as validations_count from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false`)
   validations_count.value = temp_validations_count.shift().validations_count
-  const selectValidations = `select py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identificacion, acc.reference_bbva as reference, (cd.name || ' ' || cd.building || ' | ' || cl.department) as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id join main.condominium cd on cl.condominium_id = cd.condominium_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value} offset ${offset}`
+  const selectValidations = `select py.payment_id, py.account_id, py.description, py.done_at, py.reference, py.amount, py.type_identification, acc.reference_bbva as reference, cl.client as department from main.payment py join main.account acc on py.account_id = acc.account_id join main.client cl on acc.client_id = cl.client_id where py.account_id is not null and py.validated = false order by py.payment_id asc limit ${salt_validations.value} offset ${offset}`
   const tempValidations = await DB.select(selectValidations)
   
   for(let item of tempValidations){

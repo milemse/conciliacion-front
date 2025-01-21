@@ -1,8 +1,9 @@
 import { columns } from '../utils/columns'
+import { md5 } from 'js-md5'
 
 export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
     const sheetNames = workbook.SheetNames
-    let paymentSheets = [ sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift() ]
+    let paymentSheets = [ sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift() ]
     const bbvaRegex = /bbva/i
     const indexes = []
 
@@ -66,6 +67,8 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
             upload: typeUpload.not_upload
         }
 
+        payment.reference = new String(md5(`${payment.reference}-${payment.description}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
+
         if(amount)
             payments.push(payment)
 
@@ -84,6 +87,8 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
                     reference: reference ? `${reference.w}-${index}:${columnIndex}` : `${index}:${columnIndex}`,
                     upload: typeUpload.not_upload
                 }
+
+                payment.reference = new String(md5(`${payment.reference}-${payment.description}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
 
                 payments.push(payment)
             }
@@ -211,9 +216,16 @@ export function getTanksInformation(workbook, linker_tanks, block, typeUpload){
 export async function uploadPayments(db, payments, upload){
     for (let item of payments) {
         const fecha = item.done_at
-        const insertPyment = `insert into main.payment(description, done_at, amount, reference, validated, to_download, downloaded) values($1, '${fecha}', $2, $3, false, false, false)`
+        const insertPyment = `insert into main.payment(description, done_at, amount, reference, validated, to_download) values($1, '${fecha}', $2, $3, false, false)`
 
-        if(!isNaN(item.amount)){
+        const selectPreviousPayments = `select payment_id from main.payment where payment.reference ilike '%${item.reference.split('-').shift()}%'`
+        const resultPreviousPayments = await db.select(selectPreviousPayments)
+
+        console.log('Antes de la validacion')
+        console.log(resultPreviousPayments)
+
+        if(!isNaN(item.amount) && resultPreviousPayments.length === 0){
+            console.log('Despues de la validacion')
             await db.execute(insertPyment, [item.description, item.amount, item.reference])
             item.upload = upload
         }
@@ -244,7 +256,7 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
             await db.execute(updateOwner, [consumption.owner, client_id])
 
             // Obtener ultimo periodo
-            const getLastPeriod = 'select period_id from main.period order by period_id desc limit 1'
+            const getLastPeriod = `select period_id from main.period where type = 'CONS' order by period_id desc limit 1`
             const resultPeriod = await db.select(getLastPeriod)
             let period_id = resultPeriod.shift().period_id
 
@@ -253,11 +265,11 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
 
             // Ingresar lecturas
             const insertReading = `insert into main.reading(client_id, last_reading, current_reading, last_url_photo, generated_at, current_url_photo, period_id) values($1, $2, $3, '', now(), '', $4)`
-            await db.execute(insertReading, [client_id, parseFloat(consumption.last_reading), parseFloat(consumption.current_reading), period_id])
+            await db.execute(insertReading, [client_id, consumption.last_reading, consumption.current_reading, period_id])
 
             // Buscar id de lectura
             const selectReading = `select reading_id from main.reading where client_id = $1 and last_reading = $2 and current_reading = $3`
-            const resultReading = await db.select(selectReading, [client_id, parseFloat(consumption.last_reading), parseFloat(consumption.current_reading)])
+            const resultReading = await db.select(selectReading, [client_id, consumption.last_reading, consumption.current_reading])
             const reading_id = resultReading.shift().reading_id
 
             // Insertar informacion de consumo
@@ -332,6 +344,7 @@ export function downloadConsumptions(workbook, linker){
 }
 
 function formatDate(date){
+    console.log(date)
     const partsOfDate = date.split('/')
     const [ month, day, year ] = partsOfDate
 
