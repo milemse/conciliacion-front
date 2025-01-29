@@ -97,14 +97,20 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
         }
     }
 
-    const selectPayment = `select payment_id from main.payment where reference = $1`
     const toShowPayments = []
 
     for(let payment of payments){
-        const tempPayment = await db.select(selectPayment, [payment.reference])
+        const hash = payment.reference.split('-').shift()
+        const rowPosition = `-${payment.reference.split('-').pop()}`
+        const selectPayment = `select payment_id from main.payment where reference ilike '%${rowPosition}%'`
+        const tempPayment = await db.select(selectPayment)
 
         if(tempPayment.length === 0)
             toShowPayments.push(payment)
+        else{
+            const updatePyment = `update main.payment set description = '${payment.description}', reference = '${payment.reference}', account_id = null, type_identification = '', validated = false where reference not ilike '%${hash}%' and reference ilike '%${rowPosition}'`
+            await db.execute(updatePyment)
+        }
     }
 
     return toShowPayments
@@ -221,11 +227,7 @@ export async function uploadPayments(db, payments, upload){
         const selectPreviousPayments = `select payment_id from main.payment where payment.reference ilike '%${item.reference.split('-').shift()}%'`
         const resultPreviousPayments = await db.select(selectPreviousPayments)
 
-        console.log('Antes de la validacion')
-        console.log(resultPreviousPayments)
-
         if(!isNaN(item.amount) && resultPreviousPayments.length === 0){
-            console.log('Despues de la validacion')
             await db.execute(insertPyment, [item.description, item.amount, item.reference])
             item.upload = upload
         }
@@ -344,7 +346,6 @@ export function downloadConsumptions(workbook, linker){
 }
 
 function formatDate(date){
-    console.log(date)
     const partsOfDate = date.split('/')
     const [ month, day, year ] = partsOfDate
 

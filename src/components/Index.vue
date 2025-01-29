@@ -132,7 +132,7 @@ const structuredQueries = {
     query: `select period_id, name from main.period where type = 'PAYS'`
   },
   makeByReference: {
-    query: `select acc.reference_bbva as reference from main.account acc where $1 ilike '%' || acc.reference_bbva || '%' or $2 ilike '%' || substring(acc.reference_bbva, 4, 11) || '%'`
+    query: `select acc.reference_bbva as reference from main.client cl join main.account acc on cl.client_id = acc.client_id where ($1 ilike '%' || acc.reference_bbva || '%' or $2 ilike '%' || substring(acc.reference_bbva, 4, 11) || '%')`
   }
 }
 let DB = { }
@@ -276,7 +276,6 @@ async function makeByReference(){
   let temp_payments = payments.value
   matchedPayments.value = 0
   const match = []
-  let acc_count = 0
 
   count_identifier.value = temp_payments.length
   index_identifier.value = 0
@@ -291,7 +290,6 @@ async function makeByReference(){
     }
 
     matchedPayments.value++
-    acc_count = 0
   }
 
   // ** Revisar duplicados en DB y registros bloque 4 **
