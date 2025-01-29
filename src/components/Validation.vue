@@ -47,11 +47,11 @@ async function getGeneralValidations(){
   const selectLastTotal = `select cn.total from main.client cl join main.reading rd on cl.client_id = rd.client_id join main.consumption cn on rd.reading_id = cn.reading_id where cl.client_id = $1 order by cn.consumption_id desc limit 1`
 
   for(let item of tempValidations){
-    if(item.type_identificacion === 'rf')
+    if(item.type_identification === 'rf')
       item.identification = type_identification.reference
-    else if(item.type_identificacion === 'am')
+    else if(item.type_identification === 'am')
       item.identification = type_identification.amount
-    else if(item.type_identificacion === 'ch')
+    else if(item.type_identification === 'ch')
       item.identification = type_identification.cash
 
     const client_id = item.client_id
