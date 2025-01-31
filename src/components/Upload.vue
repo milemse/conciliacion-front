@@ -211,7 +211,7 @@ async function upload() {
 }
 
 async function showPayments(workbook){
-    totalOfPayments = await getPaymentsInformation(workbook, linker_payments, type_upload, DB)
+    totalOfPayments = await getPaymentsInformation(workbook, linker_payments, type_upload, DB, param_id.value)
     totalOfPayments.forEach(item => {
         item.referenceToShow = item.reference.split('-').shift()
     })

@@ -1,7 +1,7 @@
 import { columns } from '../utils/columns'
 import { md5 } from 'js-md5'
 
-export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
+export async function getPaymentsInformation(workbook, linker, typeUpload, db, param_id) {
     const sheetNames = workbook.SheetNames
     let paymentSheets = [ sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift() ]
     const bbvaRegex = /bbva/i
@@ -67,7 +67,7 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
             upload: typeUpload.not_upload
         }
 
-        payment.reference = new String(md5(`${payment.reference}-${payment.description}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
+        payment.reference = new String(md5(`${payment.reference}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
 
         if(amount)
             payments.push(payment)
@@ -88,7 +88,7 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
                     upload: typeUpload.not_upload
                 }
 
-                payment.reference = new String(md5(`${payment.reference}-${payment.description}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
+                payment.reference = new String(md5(`${payment.reference}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
 
                 payments.push(payment)
             }
@@ -100,18 +100,15 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
     const toShowPayments = []
 
     for(let payment of payments){
-        const hash = payment.reference.split('-').shift()
-        const rowPosition = `-${payment.reference.split('-').pop()}`
-        const selectPayment = `select payment_id from main.payment where reference ilike '%${rowPosition}%'`
+        const selectPayment = `select payment_id from main.payment where reference = '${payment.reference}'`
         const tempPayment = await db.select(selectPayment)
 
-        if(tempPayment.length === 0)
+        if(tempPayment.length === 0) {
             toShowPayments.push(payment)
-        else{
-            const updatePyment = `update main.payment set description = '${payment.description}', reference = '${payment.reference}', account_id = null, type_identification = '', validated = false where reference not ilike '%${hash}%' and reference ilike '%${rowPosition}'`
-            await db.execute(updatePyment)
-        }
+        } 
     }
+
+    console.log('Termino de analisis de pagos')
 
     return toShowPayments
 }
