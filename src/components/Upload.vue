@@ -9,8 +9,7 @@ import Database from '@tauri-apps/plugin-sql'
 
 import { linker_payments } from '../utils/linker_payments'
 import { linker_consumptions } from '../utils/linker_consumptions'
-import { linker_tanks } from '../utils/linker_tanks'
-import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions, getTanksInformation, uploadTanks } from '../services/excel'
+import { getPaymentsInformation, uploadPayments, getConsumptionsInformation, uploadConsumptions } from '../services/excel'
 
 const type_upload = {
   upload: {
@@ -28,8 +27,6 @@ const paymentsToShow = ref([])
 let totalOfPayments = []
 const consumptionsToShow = ref([])
 let totalOfConsumptions = []
-const tanksToShow = ref([])
-let totalOfTanks = []
 const count = ref(0)
 const toShowType = ref('')
 const param_id = ref(0)
@@ -43,7 +40,7 @@ const position = ref({
 const options = {
     period: {
         name: 'Selecciona un periodo',
-        options: [] //
+        options: []
     },
     block: {
         name: 'Selecciona un bloque',
@@ -66,12 +63,10 @@ const notification = ref({
   description: ''
 })
 
-let PROVEE_TEST = ''
-
 // metodos select() y execute()
 onBeforeMount(async function () {
-    PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
-    DB = await Database.load(PROVEE_TEST)
+    const PROVEE_DB = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+    DB = await Database.load(PROVEE_DB)
 })
 
 async function selectOption(){
@@ -102,13 +97,6 @@ async function selectOption(){
             options.period.options = tempPeriods
             tempOptionsToShow.name = options.period.name
             tempOptionsToShow.options = options.period.options
-
-            optionsToShow.value = tempOptionsToShow
-        break
-        case 'tk':
-            options.period.options = tempPeriods
-            tempOptionsToShow.name = options.block.name
-            tempOptionsToShow.options = options.block.options
 
             optionsToShow.value = tempOptionsToShow
         break
@@ -161,24 +149,6 @@ async function start(){
                 document.getElementById('notification').style.display = 'block'
             }
         break
-        case 'tk':
-            selectedFile = await open({
-                title: 'Selecciona tu archivo',
-                multiple: false,
-                directory: false,
-                filters: [ { name: "Archivo de tanques", extensions: ["xlsx"] } ]
-            })
-            if(selectedFile !== null){
-                toUploadFile = await readFile(selectedFile)
-                workbook = read(toUploadFile)
-                showTanks(workbook)
-                toShowType.value = 'tk'
-            }else{
-                notification.value.title = 'Archivo no seleccionado'
-                notification.value.description = 'No se ha seleccionado un archivo para cargar las lecturas de tanques.'
-                document.getElementById('notification').style.display = 'block'
-            }
-        break
     }
 
     selectedFilePath.value = selectedFile
@@ -202,11 +172,6 @@ async function upload() {
                 document.getElementById('notification').style.display = 'block'
             }
         break
-        case 'tk':
-            await uploadTanks(DB, totalOfTanks, type_upload.upload)
-            tanksToShow.value = []
-            tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
-        break
     }
 }
 
@@ -225,12 +190,6 @@ function showConsumptions(workbook){
     totalOfConsumptions = getConsumptionsInformation(workbook, linker_consumptions, type_upload)
     count.value = totalOfConsumptions.length
     consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
-}
-
-function showTanks(workbook){
-    totalOfTanks = getTanksInformation(workbook, linker_tanks, param_id.value, type_upload)
-    count.value = totalOfTanks.length
-    tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 
 function getParamId(value){
@@ -255,8 +214,6 @@ function getPrevious(){
         paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
     else if(toShowType.value === 'rd')
         consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
-    else if(toShowType.value === 'tk')
-        tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 
 function getNext(){
@@ -271,8 +228,6 @@ function getNext(){
         paymentsToShow.value = totalOfPayments.slice(position.value.start, position.value.end)
     else if(toShowType.value === 'rd')
         consumptionsToShow.value = totalOfConsumptions.slice(position.value.start, position.value.end)
-    else if(toShowType.value === 'tk')
-        tanksToShow.value = totalOfTanks.slice(position.value.start, position.value.end)
 }
 </script>
 <template>
@@ -298,7 +253,6 @@ function getNext(){
                     <option selected>Selecione una opción</option> 
                     <option value="fz">Pagos del área de Finanzas</option>
                     <option value="rd">Consumos del área de Residenciales</option>
-                    <option value="tk">Lectura de tanques</option>
                 </select>
                 <svg class="w-6 h-6 text-gray-800 absolute top-2 right-4 hover:cursor-pointer" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                     <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/>
@@ -373,34 +327,6 @@ function getNext(){
                         <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">$ {{ consumption.total.toLocaleString() }}</td>
                         <td class="p-2 whitespace-nowrap">
                             <span :class="consumption.upload.classes">{{ consumption.upload.name }}</span>
-                        </td>
-                    </tr>                 
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="max-w-full border mt-4 mx-4" v-else-if="toShowType === 'tk'">
-        <div class="py-2 mx-4">
-            <h3 class="text-xl font-medium">Lectura de tanques</h3>
-        </div>
-        <div class="flex flex-col overflow-x-auto overflow-y-auto inline-block min-w-full align-middle overflow-hidden">
-            <table class="sm:rounded-lg min-w-full divide-y">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">ID Tanque</th>
-                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Inicial</th>
-                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Final</th>
-                        <th scope="col" class="p-4 text-xs font-bold tracking-wider text-left text-gray-900 uppercase">Cargado</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white">
-                    <tr class="odd:bg-white even:bg-gray-100" v-for="tank in tanksToShow">
-                        <td class="p-2 text-sm font-semibold text-gray-900 whitespace-nowrap">{{ tank.id }}</td>
-                        <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ tank.initial }}%</td>
-                        <td class="p-2 text-sm font-normal text-gray-900 whitespace-nowrap">{{ tank.final }}%</td>
-                        <td class="p-2 whitespace-nowrap">
-                            <span :class="tank.upload.classes">{{ tank.upload.name }}</span>
                         </td>
                     </tr>                 
                 </tbody>

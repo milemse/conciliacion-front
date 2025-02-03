@@ -1,7 +1,7 @@
 import { columns } from '../utils/columns'
 import { md5 } from 'js-md5'
 
-export async function getPaymentsInformation(workbook, linker, typeUpload, db, param_id) {
+export async function getPaymentsInformation(workbook, linker, typeUpload, db) {
     const sheetNames = workbook.SheetNames
     let paymentSheets = [ sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift(), sheetNames.shift() ]
     const bbvaRegex = /bbva/i
@@ -49,10 +49,14 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db, p
         }
     }
 
-    const payments = []
+    let payments = []
     for(let index in paymentSheets){
         const sheet = workbook.Sheets[paymentSheets[index]]
-        
+
+        let sheetName = paymentSheets[index]
+        sheetName = sheetName.replaceAll(' ', '').toLowerCase()
+        console.log(sheetName)
+
         let columnIndex = indexes[index] + 1
         let description = sheet[`${linker.description.column[index]}${columnIndex}`]
         let amount = sheet[`${linker.amount.column[index]}${columnIndex}`]
@@ -60,14 +64,14 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db, p
         let reference = sheet[`${linker.reference.column[index]}${columnIndex}`]
 
         let payment = {
-            description: description ? description.v : '',
+            description: description ? new String(description.v).trim() : '',
             amount: amount ? amount.v : 0.0,
             done_at: done_at ? formatDate(done_at.w) : '',
             reference: reference ? `${reference.w}-${index}:${columnIndex}` : `${index}:${columnIndex}`,
             upload: typeUpload.not_upload
         }
 
-        payment.reference = new String(md5(`${payment.reference}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
+        payment.reference = new String(md5(`${payment.reference}-${payment.amount}`)) + `-${index}:${columnIndex}`
 
         if(amount)
             payments.push(payment)
@@ -81,14 +85,14 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db, p
 
             if(amount){
                 payment = {
-                    description: description ? description.v : '',
+                    description: description ? new String(description.v).trim() : '',
                     amount: amount ? amount.v : 0.0,
                     done_at: done_at ? formatDate(done_at.w) : '',
                     reference: reference ? `${reference.w}-${index}:${columnIndex}` : `${index}:${columnIndex}`,
                     upload: typeUpload.not_upload
                 }
 
-                payment.reference = new String(md5(`${payment.reference}-${payment.amount}-${payment.done_at}`)) + `-${index}:${columnIndex}`
+                payment.reference = new String(md5(`${payment.reference}-${payment.amount}`)) + `-${index}:${columnIndex}`
 
                 payments.push(payment)
             }
@@ -97,18 +101,37 @@ export async function getPaymentsInformation(workbook, linker, typeUpload, db, p
         }
     }
 
-    const toShowPayments = []
+    const inArrayPayments = []
+    let inPayments = ``
+    let index = 0
 
     for(let payment of payments){
-        const selectPayment = `select payment_id from main.payment where reference = '${payment.reference}'`
-        const tempPayment = await db.select(selectPayment)
+        inPayments += `'${payment.reference}',`
 
-        if(tempPayment.length === 0) {
-            toShowPayments.push(payment)
-        } 
+        index++
+
+        if(index % 50 === 0){
+            inPayments = inPayments.slice(0, -1)
+            inArrayPayments.push(inPayments)
+            inPayments = ``
+        } else if (index === payments.length) {
+            inPayments = inPayments.slice(0, -1)
+            inArrayPayments.push(inPayments)
+        }
     }
 
-    console.log('Termino de analisis de pagos')
+    for(let inPayments of inArrayPayments){
+        const selectPayment = `select reference from main.payment where reference in (${inPayments})`
+        const tempPayments = await db.select(selectPayment)
+
+        for(let tempPayment of tempPayments){
+            const reference = tempPayment.reference
+
+            payments = payments.filter(item => item.reference !== reference)
+        }
+    }
+
+    const toShowPayments = payments
 
     return toShowPayments
 }
@@ -190,32 +213,6 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
     return consumptions
 }
 
-export function getTanksInformation(workbook, linker_tanks, block, typeUpload){
-    const sheet = workbook.Sheets[`BLOQUE ${block}`]
-    let index = 2
-    const tanks = []
-
-    for (let idx = index; idx < 200; idx++){
-        index = 2
-        const tank = {
-            id: sheet[`${linker_tanks.id.column}${idx}`] ? sheet[`${linker_tanks.id.column}${idx}`].v : 0,
-            initial: sheet[`${linker_tanks.initial.column}${idx}`] ? parseInt(parseFloat(sheet[`${linker_tanks.initial.column}${idx}`].v) * 100) : 0,
-            final: sheet[`${linker_tanks.final.column}${idx}`] ? parseInt(parseFloat(sheet[`${linker_tanks.final.column}${idx}`].v) * 100) : 0,
-            upload: typeUpload.not_upload
-        }
-
-        if(index == 0 && !tank.id)
-            break
-
-        if(tank.id)
-            tanks.push(tank)
-
-        index--
-    }
-
-    return tanks
-}
-
 export async function uploadPayments(db, payments, upload){
     for (let item of payments) {
         const fecha = item.done_at
@@ -285,21 +282,6 @@ export async function uploadConsumptions(db, consumptions, upload, in_period_id)
         return 0
 }
 
-export async function uploadTanks(db, tanks, upload){
-    const insertTank = `insert into main.reading_tank(tank_id, last_reading, current_reading, done_at) values($1, $2, $3, now())`
-
-    for (let item of tanks) {
-        const tank_id = item.id
-        const last_reading = item.initial
-        const current_reading = item.final
-
-        if(!isNaN(tank_id) && !isNaN(last_reading) && !isNaN(current_reading)){
-            await db.execute(insertTank, [parseInt(tank_id), parseFloat(last_reading), parseFloat(current_reading)])
-            item.upload = upload
-        }
-    }
-}
-
 export async function downloadPayments(payments, db){
     const to_download_update = `update main.payment set to_download = true where payment_id = $1`
 
@@ -347,9 +329,9 @@ function formatDate(date){
     const [ month, day, year ] = partsOfDate
 
     if (year.length < 4)
-        return `20${year}-${month}-${day}`
+        return `20${year}-${month}-${day}`.trim()
     else
-        return `${year}-${day}-${month}`
+        return `${year}-${day}-${month}`.trim()
 }
 
 function resetLinker(linker) {
