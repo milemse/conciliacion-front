@@ -214,18 +214,32 @@ export function getConsumptionsInformation(workbook, linker, typeUpload) {
 }
 
 export async function uploadPayments(db, payments, upload){
-    for (let item of payments) {
-        const fecha = item.done_at
-        const insertPyment = `insert into main.payment(description, done_at, amount, reference, validated, to_download) values($1, '${fecha}', $2, $3, false, false)`
+    const valuesPaymentsArray = []
+    const initValuesPayments = `insert into main.payment(description, done_at, amount, reference, validated, to_download) values `
+    let valuesPayments = ``
+    let index = 0
 
-        const selectPreviousPayments = `select payment_id from main.payment where payment.reference ilike '%${item.reference.split('-').shift()}%'`
-        const resultPreviousPayments = await db.select(selectPreviousPayments)
+    for(let payment of payments){
+        valuesPayments += `('${payment.description}', '${payment.done_at}', ${payment.amount}, '${payment.reference}', false, false),`
 
-        if(!isNaN(item.amount) && resultPreviousPayments.length === 0){
-            await db.execute(insertPyment, [item.description, item.amount, item.reference])
-            item.upload = upload
+        index++
+
+        if(index % 50 === 0){
+            valuesPayments = valuesPayments.slice(0, -1)
+            valuesPaymentsArray.push(valuesPayments)
+            valuesPayments = ``
+        } else if (index === payments.length) {
+            valuesPayments = valuesPayments.slice(0, -1)
+            valuesPaymentsArray.push(valuesPayments)
         }
     }
+
+    for(let valuePayments of valuesPaymentsArray)
+        await db.execute(initValuesPayments + valuePayments)
+
+    payments.forEach(payment => {
+        payment.upload = upload
+    })
 }
 
 export async function uploadConsumptions(db, consumptions, upload, in_period_id){
