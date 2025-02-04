@@ -171,7 +171,6 @@ const notification = ref({
 })
 
 // Variables de entorno
-let PROVEE_TEST = ''
 let PATH_FROM_EXPORT = ''
 let HOST_FROM_EXPORT = ''
 let REPORT_PROD = ''
@@ -179,12 +178,12 @@ let REPORT_PROD = ''
 // metodos select() y execute()
 onBeforeMount(async function(){
   // Obtenemos variables de entorno
-  PROVEE_TEST = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
+  const PROVEE_DB = await invoke('get_enviroment_variable', { name: 'PROVEE_TEST' })
   PATH_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'PATH_FROM_EXPORT' })
   HOST_FROM_EXPORT = await invoke('get_enviroment_variable', { name: 'HOST_FROM_EXPORT' })
   REPORT_PROD = await invoke('get_enviroment_variable', { name: 'REPORT_PROD' })
 
-  DB = await Database.load(PROVEE_TEST) // TODO
+  DB = await Database.load(PROVEE_DB)
 
   const temp_payments_count = await DB.select(paymentCountQuery)
   payments_count.value = temp_payments_count.shift().payments_count
